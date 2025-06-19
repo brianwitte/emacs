@@ -445,11 +445,6 @@
   :config
   (setq flycheck-emacs-lisp-load-path 'inherit))
 
-(use-package smartparens
-  :hook ((emacs-lisp-mode clojure-mode clojurescript-mode clojurec-mode
-          lisp-mode scheme-mode fennel-mode) . smartparens-strict-mode)
-  :config
-  (require 'smartparens-config))
 
 ;; =======================
 ;; Language Configurations
@@ -474,24 +469,110 @@
 
 ;; Emacs Lisp
 (defun setup-emacs-lisp-keybindings ()
-  "Setup Emacs Lisp specific keybindings."
+  "Setup comprehensive Emacs Lisp specific keybindings."
   (my-local-leader-def
     :keymaps 'local
+    ;; Evaluation
     "eb" 'eval-buffer
     "ed" 'eval-defun
     "ee" 'eval-last-sexp
     "er" 'eval-region
+    "eE" 'eval-expression
+    "eI" 'edebug-instrument-function
+    "eU" 'edebug-remove-instrumentation
+    "ep" 'pp-eval-last-sexp
+    "eP" 'pp-eval-expression
+    "el" 'load-library
+    "eL" 'load-file
+    "ef" 'eval-defun-and-go
+    "em" 'eval-print-last-sexp
+    "eM" 'pp-macroexpand-last-sexp
+
+    ;; Navigation & Finding
     "gf" 'find-function
+    "gF" 'find-function-other-window
     "gv" 'find-variable
-    "hd" 'describe-function
-    "hv" 'describe-variable))
+    "gV" 'find-variable-other-window
+    "gl" 'find-library
+    "gL" 'find-library-other-window
+    "gk" 'find-function-on-key
+    "gK" 'describe-key-briefly
+
+    ;; Help & Documentation
+    "hf" 'describe-function
+    "hv" 'describe-variable
+    "hk" 'describe-key
+    "hm" 'describe-mode
+    "hp" 'describe-package
+    "ht" 'describe-theme
+    "hF" 'describe-face
+    "hb" 'describe-bindings
+    "hc" 'describe-char
+    "hs" 'describe-syntax
+    "ha" 'apropos
+    "hA" 'apropos-command
+    "hw" 'where-is
+    "hi" 'info-apropos
+
+    ;; Debugging
+    "db" 'edebug-set-breakpoint
+    "dB" 'edebug-unset-breakpoint
+    "dc" 'edebug-continue
+    "dn" 'edebug-next-mode
+    "ds" 'edebug-step-mode
+    "dg" 'edebug-go-mode
+    "dG" 'edebug-Go-nonstop-mode
+    "dt" 'edebug-trace-mode
+    "dT" 'edebug-Trace-fast-mode
+    "dq" 'top-level
+    "dd" 'debug-on-entry
+    "dD" 'cancel-debug-on-entry
+
+    ;; Macros
+    "me" 'macroexpand
+    "mE" 'macroexpand-all
+    "m1" 'macroexpand-1
+    "mp" 'pp-macroexpand-last-sexp
+    "mP" 'pp-macroexpand-expression
+
+    ;; Testing
+    "tt" 'ert
+    "tr" 'ert-run-tests-batch
+    "td" 'ert-describe-test
+    "tD" 'ert-delete-test
+
+    ;; Compilation & Building
+    "cc" 'compile
+    "cr" 'recompile
+    "cb" 'byte-compile-file
+    "cB" 'byte-recompile-directory
+    "cd" 'disassemble
+
+    ;; Package Management
+    "pl" 'list-packages
+    "pi" 'package-install
+    "pd" 'package-delete
+    "pr" 'package-refresh-contents
+    "pu" 'package-list-packages-no-fetch
+
+    ;; Buffer & File Operations
+    "bf" 'byte-compile-file
+    "bb" 'eval-buffer
+    "br" 'eval-region
+    "bR" 'revert-buffer
+
+    ;; Customization
+    "cu" 'customize-group
+    "cv" 'customize-variable
+    "cf" 'customize-face
+    "ct" 'customize-themes
+    "ca" 'customize-apropos))
 
 (add-hook 'emacs-lisp-mode-hook 'setup-lisp-sexp-keybindings)
 (add-hook 'emacs-lisp-mode-hook 'setup-emacs-lisp-keybindings)
 
-
 ;; =======================
-;; Clojure LSP Setup
+;; Clojure Setup
 ;; =======================
 
 ;; Clojure
@@ -504,26 +585,175 @@
   :hook ((clojure-mode clojurescript-mode clojurec-mode) . cider-mode)
   :config
   (defun setup-clojure-keybindings ()
-    "Setup Clojure specific keybindings."
+    "Setup comprehensive Clojure/CIDER specific keybindings."
     (my-local-leader-def
       :keymaps 'local
+      ;; REPL Connection & Management
       "'" 'cider-jack-in-clj
       "\"" 'cider-jack-in-cljs
-      "eb" 'cider-eval-buffer
-      "ed" 'cider-eval-defun-at-point
-      "ee" 'cider-eval-last-sexp
-      "er" 'cider-eval-region
-      "gd" 'cider-find-var
-      "hd" 'cider-doc
-      "rb" 'cider-switch-to-repl-buffer
-      "rr" 'cider-restart
+      "c'" 'cider-jack-in-clj&cljs
+      "cc" 'cider-connect-clj
+      "cC" 'cider-connect-cljs
+      "cx" 'cider-connect-clj&cljs
       "rq" 'cider-quit
+      "rr" 'cider-restart
+      "rR" 'cider-restart-clj&cljs-repls
+      "rb" 'cider-switch-to-repl-buffer
+      "rB" 'cider-switch-to-repl-buffer-other-window
+      "rn" 'cider-repl-set-ns
+      "rN" 'cider-repl-switch-to-other
+      "rc" 'cider-find-and-clear-repl-output
+      "rl" 'cider-load-buffer-and-switch-to-repl-buffer
+      "rL" 'cider-find-ns-and-switch-to-repl
+      "rp" 'cider-pprint-eval-last-sexp-to-repl
+      "rP" 'cider-pprint-eval-defun-to-repl
+
+      ;; Evaluation
+      "eb" 'cider-eval-buffer
+      "eB" 'cider-eval-buffer-and-go
+      "ed" 'cider-eval-defun-at-point
+      "eD" 'cider-eval-defun-at-point-and-go
+      "ee" 'cider-eval-last-sexp
+      "eE" 'cider-eval-last-sexp-and-go
+      "er" 'cider-eval-region
+      "eR" 'cider-eval-region-and-go
+      "el" 'cider-eval-list-at-point
+      "eL" 'cider-eval-sexp-at-point
+      "ef" 'cider-eval-file
+      "eF" 'cider-eval-all-files
+      "en" 'cider-eval-ns-form
+      "ew" 'cider-eval-last-sexp-and-replace
+      "ep" 'cider-pprint-eval-last-sexp
+      "eP" 'cider-pprint-eval-defun-at-point
+      "em" 'cider-macroexpand-1
+      "eM" 'cider-macroexpand-all
+      "ex" 'cider-eval-last-sexp-in-context
+
+      ;; Navigation & Finding
+      "gd" 'cider-find-var
+      "gD" 'cider-find-var-other-window
+      "gb" 'cider-pop-back
+      "gn" 'cider-find-ns
+      "gN" 'cider-browse-ns
+      "gr" 'cider-find-resource
+      "gs" 'cider-browse-spec
+      "gS" 'cider-browse-spec-all
+      "gc" 'cider-classpath
+      "gj" 'cider-javadoc
+      "ga" 'cider-apropos
+      "gA" 'cider-apropos-documentation
+      "gw" 'cider-clojuredocs-web
+      "gW" 'cider-clojuredocs
+
+      ;; Help & Documentation
+      "hd" 'cider-doc
+      "hD" 'cider-clojuredocs
+      "hj" 'cider-javadoc
+      "ha" 'cider-apropos
+      "hA" 'cider-apropos-documentation
+      "hs" 'cider-apropos-select
+      "hf" 'cider-describe-function
+      "hm" 'cider-describe-macro
+      "hc" 'cider-cheatsheet
+
+      ;; Testing
       "tt" 'cider-test-run-test
-      "tn" 'cider-test-run-ns-tests))
+      "tT" 'cider-test-rerun-test
+      "tn" 'cider-test-run-ns-tests
+      "tN" 'cider-test-rerun-ns-tests
+      "tp" 'cider-test-run-project-tests
+      "tP" 'cider-test-rerun-project-tests
+      "tl" 'cider-test-run-loaded-tests
+      "tL" 'cider-test-rerun-loaded-tests
+      "tf" 'cider-test-run-focused-tests
+      "tr" 'cider-test-show-report
+      "ts" 'cider-auto-test-mode
+
+      ;; Debugging
+      "db" 'cider-debug-defun-at-point
+      "di" 'cider-inspect
+      "dI" 'cider-inspect-last-result
+      "dr" 'cider-inspect-last-result
+      "de" 'cider-enlighten-mode
+      "dE" 'cider-enlighten-current-sexp
+
+      ;; Profiling
+      "pb" 'cider-profile-toggle
+      "pc" 'cider-profile-clear
+      "pr" 'cider-profile-ns-toggle
+      "ps" 'cider-profile-samples
+      "pS" 'cider-profile-summary
+
+      ;; Refactoring
+      "rt" 'cider-refactor-thread
+      "rT" 'cider-refactor-thread-last
+      "ru" 'cider-refactor-unwind
+      "rU" 'cider-refactor-unwind-all
+      "rp" 'cider-refactor-promote-function
+      "rf" 'cider-refactor-move-form
+      "re" 'cider-refactor-extract-function
+      "ri" 'cider-refactor-introduce-let
+      "rr" 'cider-refactor-rename-symbol
+
+      ;; Namespace Operations
+      "ns" 'cider-repl-set-ns
+      "nS" 'cider-ns-refresh
+      "nr" 'cider-ns-reload
+      "nR" 'cider-ns-reload-all
+      "nb" 'cider-browse-ns
+      "nB" 'cider-browse-ns-all
+      "nf" 'cider-find-ns
+
+      ;; Format & Style
+      "fl" 'cider-format-edn-last-sexp
+      "fr" 'cider-format-edn-region
+      "fb" 'cider-format-edn-buffer
+
+      ;; ClojureScript specific
+      "sf" 'cider-cljs-figwheel-start
+      "sF" 'cider-cljs-figwheel-stop
+      "sc" 'cider-create-cljs-repl
+      "sC" 'cider-cljs-connect
+      "sb" 'cider-switch-to-cljs-repl
+      "sq" 'cider-quit-cljs-repl
+
+      ;; Miscellaneous
+      "mb" 'cider-macroexpand-1
+      "mB" 'cider-macroexpand-all
+      "mp" 'cider-pprint-eval-last-sexp
+      "mP" 'cider-pprint-eval-defun-at-point
+      "mi" 'cider-inspect-last-result
+      "mI" 'cider-inspect
+      "mc" 'cider-cheatsheet
+      "mv" 'cider-toggle-trace-var
+      "mV" 'cider-toggle-trace-ns))
 
   (dolist (mode '(clojure-mode-hook clojurescript-mode-hook clojurec-mode-hook))
     (add-hook mode 'setup-lisp-sexp-keybindings)
     (add-hook mode 'setup-clojure-keybindings)))
+
+;; =======================
+;; Lua Setup
+;; =======================
+
+;; Lua
+(use-package lua-mode
+  :mode "\\.lua\\'"
+  :config
+  (defun setup-lua-keybindings ()
+    "Setup Lua specific keybindings."
+    (my-local-leader-def
+      :keymaps 'local
+      "eb" 'lua-send-buffer
+      "ed" 'lua-send-defun
+      "ee" 'lua-send-current-line
+      "er" 'lua-send-region
+      "'" 'lua-show-process-buffer
+      "rb" 'lua-restart-with-whole-file
+      "rr" 'run-lua
+      "rq" 'lua-kill-process))
+
+  (add-hook 'lua-mode-hook 'setup-lua-keybindings))
 
 ;; =======================
 ;; Theme
