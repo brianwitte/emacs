@@ -1,6 +1,5 @@
 ;;; -*- lexical-binding: t -*-
 ;;; init.el --- Clean and pragmatic Emacs configuration
-
 ;; =======================
 ;; Package Management
 ;; =======================
@@ -106,6 +105,76 @@
   (xclip-mode 1))
 
 ;; =======================
+;; Helm Configuration
+;; =======================
+
+(use-package helm
+  :diminish helm-mode
+  :init
+  (setq helm-command-prefix-key "C-c h"
+        helm-split-window-inside-p t
+        helm-move-to-line-cycle-in-source t
+        helm-ff-search-library-in-sexp t
+        helm-scroll-amount 8
+        helm-ff-file-name-history-use-recentf t
+        helm-echo-input-in-header-line t
+        helm-autoresize-max-height 0
+        helm-autoresize-min-height 20
+        helm-buffers-fuzzy-matching t
+        helm-recentf-fuzzy-match t
+        helm-locate-fuzzy-match t
+        helm-M-x-fuzzy-match t
+        helm-semantic-fuzzy-match t
+        helm-imenu-fuzzy-match t
+        helm-completion-in-region-fuzzy-match t
+        helm-candidate-number-limit 150
+        helm-boring-file-regexp-list
+        '("\\.git$" "\\.hg$" "\\.svn$" "\\.CVS$" "\\._darcs$" "\\.la$" "\\.o$" "\\.i$")
+        helm-ff-skip-boring-files t)
+  
+  :config
+  (helm-mode 1)
+  (helm-autoresize-mode 1)
+  
+  ;; Hide header line in helm minibuffer
+  (defun helm-hide-minibuffer-maybe ()
+    (when (with-helm-buffer helm-echo-input-in-header-line)
+      (let ((ov (make-overlay (point-min) (point-max) nil nil t)))
+        (overlay-put ov 'window (selected-window))
+        (overlay-put ov 'face (let ((bg-color (face-background 'default nil)))
+                                `(:background ,bg-color :foreground ,bg-color)))
+        (setq-local cursor-type nil))))
+  (add-hook 'helm-minibuffer-set-up-hook 'helm-hide-minibuffer-maybe)
+  
+  ;; Better helm-find-files navigation
+  (define-key helm-find-files-map (kbd "C-h") 'helm-find-files-up-one-level)
+  (define-key helm-find-files-map (kbd "C-l") 'helm-execute-persistent-action))
+
+(use-package helm-projectile
+  :after (helm projectile)
+  :config
+  (helm-projectile-on))
+
+(use-package helm-ag
+  :after helm
+  :config
+  (setq helm-ag-base-command "ag --nocolor --nogroup --ignore-case"
+        helm-ag-command-option "--all-text"
+        helm-ag-insert-at-point 'symbol
+        helm-ag-fuzzy-match t))
+
+(use-package helm-swoop
+  :after helm
+  :config
+  (setq helm-multi-swoop-edit-save t
+        helm-swoop-split-with-multiple-windows nil
+        helm-swoop-split-direction 'split-window-vertically
+        helm-swoop-speed-or-color nil
+        helm-swoop-move-to-line-cycle t
+        helm-swoop-use-line-number-face t
+        helm-swoop-use-fuzzy-match t))
+
+;; =======================
 ;; Evil Mode & Keybindings
 ;; =======================
 
@@ -129,7 +198,8 @@
 
   ;; Initial states
   (evil-set-initial-state 'messages-buffer-mode 'normal)
-  (evil-set-initial-state 'dashboard-mode 'normal))
+  (evil-set-initial-state 'dashboard-mode 'normal)
+  (evil-set-initial-state 'helm-major-mode 'emacs))
 
 (use-package evil-collection
   :after evil
@@ -162,18 +232,18 @@
   ;; Global leader bindings
   (my-leader-def
     ;; Core commands
-    ":" 'execute-extended-command
-    "SPC" 'projectile-find-file
+    ":" 'helm-M-x
+    "SPC" 'helm-projectile-find-file
     "." 'embark-act
-    "," 'consult-buffer
+    "," 'helm-buffers-list
 
     ;; Files
-    "ff" 'find-file
+    "ff" 'helm-find-files
     "fs" 'save-buffer
-    "fr" 'recentf-open-files
+    "fr" 'helm-recentf
 
     ;; Buffers
-    "bb" 'switch-to-buffer
+    "bb" 'helm-buffers-list
     "bd" 'kill-buffer
     "bi" 'ibuffer
     "bn" 'next-buffer
@@ -192,200 +262,48 @@
     "wr" 'my/resize-window
 
     ;; Projects
-    "pp" 'projectile-switch-project
-    "pb" 'projectile-switch-to-buffer
+    "pp" 'helm-projectile-switch-project
+    "pb" 'helm-projectile-switch-to-buffer
     "pc" 'projectile-compile-project
     "pk" 'projectile-kill-buffers
     "pd" 'projectile-dired
     "pr" 'projectile-replace
+    "pf" 'helm-projectile-find-file
+    "pg" 'helm-projectile-grep
 
     ;; VTERM
     "ot" 'vterm
 
     ;; Search & Navigation
-    "ss" 'consult-line
-    "rf" 'consult-find
-    "rm" 'consult-mode-command
-    "ro" 'consult-outline
-    "ri" 'consult-imenu
-    "rk" 'consult-flymake
-    "rs" 'consult-locate
-    "rg" 'ripgrep
+    "ss" 'helm-swoop
+    "sS" 'helm-multi-swoop-all
+    "sp" 'helm-multi-swoop-current-mode
+    "sf" 'helm-find
+    "sg" 'helm-ag
+    "sG" 'helm-ag-project-root
+    "sl" 'helm-locate
+    "sm" 'helm-all-mark-rings
+    "sr" 'helm-resume
+    "so" 'helm-occur
+    "si" 'helm-imenu
+    "sI" 'helm-imenu-in-all-buffers
 
     ;; Tools
     "op" 'treemacs
-    "dl" 'downcase-current-line))
+    "dl" 'downcase-current-line
+
+    ;; Helm specific
+    "hh" 'helm-help
+    "hm" 'helm-man-woman
+    "hc" 'helm-colors
+    "hf" 'helm-apropos
+    "hy" 'helm-show-kill-ring
+    "hx" 'helm-register
+    "hz" 'helm-complex-command-history))
 
 ;; =======================
 ;; Completion & Navigation
 ;; =======================
-
-(use-package orderless
-  :custom
-  (completion-styles '(orderless))
-  (completion-category-defaults nil)
-  (completion-category-overrides
-   '((file (styles basic-remote orderless))))
-  (orderless-component-separator 'orderless-escapable-split-on-space)
-  (orderless-matching-styles
-   '(orderless-literal orderless-prefixes orderless-initialism orderless-regexp))
-  (orderless-style-dispatchers
-   '(prot-orderless-literal-dispatcher
-     prot-orderless-strict-initialism-dispatcher
-     prot-orderless-flex-dispatcher))
-  :init
-  ;; Dispatcher functions
-  (defun prot-orderless-literal-dispatcher (pattern _index _total)
-    (when (string-suffix-p "=" pattern)
-      `(orderless-literal . ,(substring pattern 0 -1))))
-
-  (defun prot-orderless-strict-initialism-dispatcher (pattern _index _total)
-    (when (string-suffix-p "," pattern)
-      `(orderless-strict-initialism . ,(substring pattern 0 -1))))
-
-  (defun prot-orderless-flex-dispatcher (pattern _index _total)
-    (when (string-suffix-p "." pattern)
-      `(orderless-flex . ,(substring pattern 0 -1)))))
-
-(use-package vertico
-  :demand t
-  :straight (vertico :files (:defaults "extensions/*")
-                     :includes (vertico-indexed vertico-flat vertico-grid
-                               vertico-mouse vertico-quick vertico-buffer
-                               vertico-repeat vertico-reverse vertico-directory
-                               vertico-multiform vertico-unobtrusive))
-  :general
-  (:keymaps '(normal insert visual motion) "M-." 'vertico-repeat)
-  (:keymaps 'vertico-map
-            "<tab>" 'vertico-insert
-            "<escape>" 'minibuffer-keyboard-quit
-            "?" 'minibuffer-completion-help
-            "C-M-n" 'vertico-next-group
-            "C-M-p" 'vertico-previous-group
-            "<backspace>" 'vertico-directory-delete-char
-            "C-w" 'vertico-directory-delete-word
-            "C-<backspace>" 'vertico-directory-delete-word
-            "RET" 'vertico-directory-enter
-            "C-i" 'vertico-quick-insert
-            "C-o" 'vertico-quick-exit
-            "M-o" 'kb/vertico-quick-embark
-            "M-G" 'vertico-multiform-grid
-            "M-F" 'vertico-multiform-flat
-            "M-R" 'vertico-multiform-reverse
-            "M-U" 'vertico-multiform-unobtrusive
-            "C-l" 'kb/vertico-multiform-flat-toggle)
-  :hook ((rfn-eshadow-update-overlay . vertico-directory-tidy)
-         (minibuffer-setup . vertico-repeat-save))
-  :custom
-  (vertico-count 13)
-  (vertico-resize nil)
-  (vertico-cycle nil)
-  (vertico-grid-separator "       ")
-  (vertico-grid-lookahead 50)
-  (vertico-buffer-display-action '(display-buffer-reuse-window))
-  (vertico-multiform-categories
-   '((file reverse)
-     (consult-grep buffer)
-     (consult-location)
-     (imenu buffer)
-     (library reverse indexed)
-     (org-roam-node reverse indexed)
-     (t reverse)))
-  (vertico-multiform-commands
-   '(("flyspell-correct-*" grid reverse)
-     (org-refile grid reverse indexed)
-     (consult-yank-pop indexed)
-     (consult-flycheck)
-     (consult-lsp-diagnostics)))
-  :init
-  ;; Helper functions
-  (defun kb/vertico-multiform-flat-toggle ()
-    (interactive)
-    (vertico-multiform--display-toggle 'vertico-flat-mode)
-    (if vertico-flat-mode
-        (vertico-multiform--temporary-mode 'vertico-reverse-mode -1)
-      (vertico-multiform--temporary-mode 'vertico-reverse-mode 1)))
-
-  (defun kb/vertico-quick-embark (&optional arg)
-    (interactive)
-    (when (vertico-quick-jump)
-      (embark-act arg)))
-
-  ;; Tramp completion workaround
-  (defun kb/basic-remote-try-completion (string table pred point)
-    (and (vertico--remote-p string)
-         (completion-basic-try-completion string table pred point)))
-
-  (defun kb/basic-remote-all-completions (string table pred point)
-    (and (vertico--remote-p string)
-         (completion-basic-all-completions string table pred point)))
-
-  (add-to-list 'completion-styles-alist
-               '(basic-remote kb/basic-remote-try-completion
-                 kb/basic-remote-all-completions nil))
-  :config
-  (vertico-mode)
-  (vertico-multiform-mode)
-
-  ;; Current candidate prefix
-  (advice-add #'vertico--format-candidate :around
-              (lambda (orig cand prefix suffix index _start)
-                (setq cand (funcall orig cand prefix suffix index _start))
-                (concat
-                 (if (= vertico--index index)
-                     (propertize "» " 'face 'vertico-current)
-                   "  ")
-                 cand))))
-
-(use-package marginalia
-  :general
-  (:keymaps 'minibuffer-local-map "M-A" 'marginalia-cycle)
-  :custom
-  (marginalia-max-relative-age 0)
-  (marginalia-align 'right)
-  :init
-  (marginalia-mode))
-
-(use-package embark
-  :demand t
-  :general
-  ("C-." 'embark-act)
-  ("C-;" 'embark-dwim)
-  (:keymaps 'vertico-map "C-." 'embark-act)
-  (:keymaps 'embark-heading-map "l" 'org-id-store-link)
-  :init
-  (setq prefix-help-command #'embark-prefix-help-command)
-  :config
-  (add-to-list 'display-buffer-alist
-               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-                 nil
-                 (window-parameters (mode-line-format . none)))))
-
-(use-package embark-consult
-  :hook (embark-collect-mode . consult-preview-at-point-mode))
-
-(use-package corfu
-  :custom
-  (corfu-auto t)
-  (completion-cycle-threshold 3)
-  (tab-always-indent 'complete)
-  :init
-  (global-corfu-mode))
-
-(use-package corfu-terminal
-  :after corfu
-  :straight (corfu-terminal :type git :repo "https://codeberg.org/akib/emacs-corfu-terminal.git")
-  :init
-  (unless (display-graphic-p) (corfu-terminal-mode +1)))
-
-(use-package all-the-icons
-  :if (display-graphic-p))
-
-(use-package all-the-icons-completion
-  :after (marginalia all-the-icons)
-  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
-  :init
-  (all-the-icons-completion-mode))
 
 (use-package avy
   :demand t
@@ -421,7 +339,7 @@
   :diminish projectile-mode
   :config
   (projectile-mode +1)
-  (setq projectile-completion-system 'default
+  (setq projectile-completion-system 'helm
         projectile-enable-caching t))
 
 (use-package treemacs)
@@ -444,7 +362,6 @@
   :hook (after-init . global-flycheck-mode)
   :config
   (setq flycheck-emacs-lisp-load-path 'inherit))
-
 
 ;; =======================
 ;; Language Configurations
@@ -572,188 +489,230 @@
 (add-hook 'emacs-lisp-mode-hook 'setup-emacs-lisp-keybindings)
 
 ;; =======================
-;; Clojure Setup
+;; Clojure Setup - 20 Essential Keybindings
 ;; =======================
-
-;; Clojure
-(use-package clojure-mode
-  :mode (("\\.clj\\'" . clojure-mode)
-         ("\\.cljs\\'" . clojurescript-mode)
-         ("\\.cljc\\'" . clojurec-mode)))
-
+;; Clojure with CIDER
 (use-package cider
-  :hook ((clojure-mode clojurescript-mode clojurec-mode) . cider-mode)
   :config
   (defun setup-clojure-keybindings ()
-    "Setup comprehensive Clojure/CIDER specific keybindings."
+    "Setup essential Clojure/CIDER keybindings modeled after SLIME."
+    (my-local-leader-def
+      :keymaps 'local
+      ;; REPL Connection & Management (4 bindings)
+      "'" 'cider-jack-in                    ; Start REPL (like slime)
+      "rq" 'cider-quit                      ; Quit REPL
+      "rr" 'cider-restart                   ; Restart REPL
+      "rB" 'cider-repl-clear-buffer        ; Clear REPL buffer
+      
+      ;; Evaluation (6 bindings)
+      "eb" 'cider-eval-buffer              ; Eval buffer
+      "ed" 'cider-eval-defun-at-point      ; Eval defun
+      "ee" 'cider-eval-last-sexp           ; Eval last expression
+      "er" 'cider-eval-region              ; Eval region
+      "eE" 'cider-read-and-eval            ; Interactive eval
+      "ep" 'cider-pprint-eval-last-sexp    ; Pretty print eval
+      
+      ;; Navigation & Finding (4 bindings)
+      "gd" 'cider-find-var                 ; Go to definition
+      "gD" 'cider-find-var-other-window    ; Go to def other window
+      "gb" 'cider-pop-back                 ; Pop back from definition
+      "gr" 'cider-find-references-at-point ; Find references
+      
+      ;; Help & Documentation (3 bindings)
+      "hd" 'cider-doc                      ; Show documentation
+      "ha" 'cider-apropos                  ; Apropos search
+      "hj" 'cider-javadoc                  ; Java documentation
+      
+      ;; Testing (2 bindings)
+      "tt" 'cider-test-run-test            ; Run test at point
+      "ta" 'cider-test-run-all-tests       ; Run all tests
+      
+      ;; Debugging (1 binding)
+      "di" 'cider-inspect-last-result))    ; Inspect last result
+  
+  (add-hook 'clojure-mode-hook 'setup-clojure-keybindings)
+  (add-hook 'cider-mode-hook 'setup-clojure-keybindings))
+
+;; =======================
+;; Common Lisp Setup
+;; =======================
+
+;; Common Lisp with SLIME
+(use-package slime
+  :config
+  (setq inferior-lisp-program "sbcl") ; or your preferred Lisp implementation
+  (setq slime-contribs '(slime-fancy))
+  
+  (defun setup-common-lisp-keybindings ()
+    "Setup comprehensive Common Lisp/SLIME specific keybindings."
     (my-local-leader-def
       :keymaps 'local
       ;; REPL Connection & Management
-      "'" 'cider-jack-in-clj
-      "\"" 'cider-jack-in-cljs
-      "c'" 'cider-jack-in-clj&cljs
-      "cc" 'cider-connect-clj
-      "cC" 'cider-connect-cljs
-      "cx" 'cider-connect-clj&cljs
-      "rq" 'cider-quit
-      "rr" 'cider-restart
-      "rR" 'cider-restart-clj&cljs-repls
-      "rb" 'cider-switch-to-repl-buffer
-      "rB" 'cider-switch-to-repl-buffer-other-window
-      "rn" 'cider-repl-set-ns
-      "rN" 'cider-repl-switch-to-other
-      "rc" 'cider-find-and-clear-repl-output
-      "rl" 'cider-load-buffer-and-switch-to-repl-buffer
-      "rL" 'cider-find-ns-and-switch-to-repl
-      "rp" 'cider-pprint-eval-last-sexp-to-repl
-      "rP" 'cider-pprint-eval-defun-to-repl
+      "'" 'slime
+      "rq" 'slime-quit-lisp
+      "rr" 'slime-restart-inferior-lisp
+      "rb" 'slime-switch-to-output-buffer
+      "rB" 'slime-repl-clear-buffer
+      "rn" 'slime-repl-set-package
+      "rc" 'slime-repl-clear-output
+      "rl" 'slime-load-file-set-package
+      "rp" 'slime-pprint-eval-last-expression
+      "rP" 'slime-pprint-eval-region
 
       ;; Evaluation
-      "eb" 'cider-eval-buffer
-      "eB" 'cider-eval-buffer-and-go
-      "ed" 'cider-eval-defun-at-point
-      "eD" 'cider-eval-defun-at-point-and-go
-      "ee" 'cider-eval-last-sexp
-      "eE" 'cider-eval-last-sexp-and-go
-      "er" 'cider-eval-region
-      "eR" 'cider-eval-region-and-go
-      "el" 'cider-eval-list-at-point
-      "eL" 'cider-eval-sexp-at-point
-      "ef" 'cider-eval-file
-      "eF" 'cider-eval-all-files
-      "en" 'cider-eval-ns-form
-      "ew" 'cider-eval-last-sexp-and-replace
-      "ep" 'cider-pprint-eval-last-sexp
-      "eP" 'cider-pprint-eval-defun-at-point
-      "em" 'cider-macroexpand-1
-      "eM" 'cider-macroexpand-all
-      "ex" 'cider-eval-last-sexp-in-context
+      "eb" 'slime-eval-buffer
+      "ed" 'slime-eval-defun
+      "ee" 'slime-eval-last-expression
+      "er" 'slime-eval-region
+      "eE" 'slime-interactive-eval
+      "el" 'slime-eval-load-file
+      "ef" 'slime-load-file
+      "ep" 'slime-pprint-eval-last-expression
+      "eP" 'slime-pprint-eval-region
+      "em" 'slime-macroexpand-1
+      "eM" 'slime-macroexpand-all
+      "ex" 'slime-expand-1
+
+      ;; Compilation
+      "cb" 'slime-compile-file
+      "cc" 'slime-compile-defun
+      "cr" 'slime-compile-region
+      "cl" 'slime-load-file
+      "cL" 'slime-compile-and-load-file
 
       ;; Navigation & Finding
-      "gd" 'cider-find-var
-      "gD" 'cider-find-var-other-window
-      "gb" 'cider-pop-back
-      "gn" 'cider-find-ns
-      "gN" 'cider-browse-ns
-      "gr" 'cider-find-resource
-      "gs" 'cider-browse-spec
-      "gS" 'cider-browse-spec-all
-      "gc" 'cider-classpath
-      "gj" 'cider-javadoc
-      "ga" 'cider-apropos
-      "gA" 'cider-apropos-documentation
-      "gw" 'cider-clojuredocs-web
-      "gW" 'cider-clojuredocs
+      "gd" 'slime-edit-definition
+      "gD" 'slime-edit-definition-other-window
+      "gb" 'slime-pop-find-definition-stack
+      "gn" 'slime-next-note
+      "gN" 'slime-previous-note
+      "gc" 'slime-list-callers
+      "gC" 'slime-list-callees
+      "gr" 'slime-who-references
+      "gw" 'slime-who-calls
+      "gs" 'slime-who-sets
+      "gb" 'slime-who-binds
+      "gm" 'slime-who-macroexpands
+      "gu" 'slime-disassemble-symbol
 
       ;; Help & Documentation
-      "hd" 'cider-doc
-      "hD" 'cider-clojuredocs
-      "hj" 'cider-javadoc
-      "ha" 'cider-apropos
-      "hA" 'cider-apropos-documentation
-      "hs" 'cider-apropos-select
-      "hf" 'cider-describe-function
-      "hm" 'cider-describe-macro
-      "hc" 'cider-cheatsheet
+      "hd" 'slime-describe-symbol
+      "hf" 'slime-describe-function
+      "ha" 'slime-apropos
+      "hA" 'slime-apropos-all
+      "hp" 'slime-apropos-package
+      "hH" 'slime-hyperspec-lookup
+      "h~" 'common-lisp-hyperspec
 
       ;; Testing
-      "tt" 'cider-test-run-test
-      "tT" 'cider-test-rerun-test
-      "tn" 'cider-test-run-ns-tests
-      "tN" 'cider-test-rerun-ns-tests
-      "tp" 'cider-test-run-project-tests
-      "tP" 'cider-test-rerun-project-tests
-      "tl" 'cider-test-run-loaded-tests
-      "tL" 'cider-test-rerun-loaded-tests
-      "tf" 'cider-test-run-focused-tests
-      "tr" 'cider-test-show-report
-      "ts" 'cider-auto-test-mode
+      "tt" 'slime-toggle-trace-fdefinition
+      "tT" 'slime-untrace-all
+      "tf" 'slime-toggle-fancy-trace
 
       ;; Debugging
-      "db" 'cider-debug-defun-at-point
-      "di" 'cider-inspect
-      "dI" 'cider-inspect-last-result
-      "dr" 'cider-inspect-last-result
-      "de" 'cider-enlighten-mode
-      "dE" 'cider-enlighten-current-sexp
+      "db" 'slime-toggle-break-on-signals
+      "dc" 'slime-debug-continue
+      "da" 'slime-debug-abort
+      "dq" 'slime-debug-quit
+      "dr" 'slime-debug-restart
+      "ds" 'slime-debug-step
+      "dd" 'slime-debug-details
+      "di" 'slime-inspect
+      "dI" 'slime-inspect-definition
 
       ;; Profiling
-      "pb" 'cider-profile-toggle
-      "pc" 'cider-profile-clear
-      "pr" 'cider-profile-ns-toggle
-      "ps" 'cider-profile-samples
-      "pS" 'cider-profile-summary
+      "pb" 'slime-profile-by-substring
+      "pf" 'slime-profile-functions
+      "pp" 'slime-profile-package
+      "pr" 'slime-profile-report
+      "pR" 'slime-profile-reset
+      "pu" 'slime-unprofile-all
 
-      ;; Refactoring
-      "rt" 'cider-refactor-thread
-      "rT" 'cider-refactor-thread-last
-      "ru" 'cider-refactor-unwind
-      "rU" 'cider-refactor-unwind-all
-      "rp" 'cider-refactor-promote-function
-      "rf" 'cider-refactor-move-form
-      "re" 'cider-refactor-extract-function
-      "ri" 'cider-refactor-introduce-let
-      "rr" 'cider-refactor-rename-symbol
+      ;; Packages
+      "pd" 'slime-describe-package
+      "ps" 'slime-set-package
+      "pf" 'slime-find-package
 
-      ;; Namespace Operations
-      "ns" 'cider-repl-set-ns
-      "nS" 'cider-ns-refresh
-      "nr" 'cider-ns-reload
-      "nR" 'cider-ns-reload-all
-      "nb" 'cider-browse-ns
-      "nB" 'cider-browse-ns-all
-      "nf" 'cider-find-ns
+      ;; Xref
+      "xc" 'slime-list-callers
+      "xC" 'slime-list-callees
+      "xr" 'slime-who-references
+      "xb" 'slime-who-binds
+      "xs" 'slime-who-sets
+      "xm" 'slime-who-macroexpands
 
-      ;; Format & Style
-      "fl" 'cider-format-edn-last-sexp
-      "fr" 'cider-format-edn-region
-      "fb" 'cider-format-edn-buffer
+      ;; Inspector
+      "id" 'slime-inspect-definition
+      "ii" 'slime-inspect
+      "in" 'slime-inspector-next
+      "ip" 'slime-inspector-previous
+      "iq" 'slime-inspector-quit
+      "ir" 'slime-inspector-reinspect
+      "iw" 'slime-inspector-copy-down
 
-      ;; ClojureScript specific
-      "sf" 'cider-cljs-figwheel-start
-      "sF" 'cider-cljs-figwheel-stop
-      "sc" 'cider-create-cljs-repl
-      "sC" 'cider-cljs-connect
-      "sb" 'cider-switch-to-cljs-repl
-      "sq" 'cider-quit-cljs-repl
+      ;; Scratch/Notes
+      "ns" 'slime-scratch
+      "nS" 'slime-scratch-buffer
+
+      ;; System interaction
+      "sy" 'slime-sync-package-and-default-directory
+      "sp" 'slime-set-default-directory
 
       ;; Miscellaneous
-      "mb" 'cider-macroexpand-1
-      "mB" 'cider-macroexpand-all
-      "mp" 'cider-pprint-eval-last-sexp
-      "mP" 'cider-pprint-eval-defun-at-point
-      "mi" 'cider-inspect-last-result
-      "mI" 'cider-inspect
-      "mc" 'cider-cheatsheet
-      "mv" 'cider-toggle-trace-var
-      "mV" 'cider-toggle-trace-ns))
+      "mb" 'slime-macroexpand-1
+      "mB" 'slime-macroexpand-all
+      "mi" 'slime-inspect-definition
+      "mI" 'slime-inspect
+      "mc" 'slime-calls-who
+      "mv" 'slime-toggle-trace-fdefinition))
 
-  (dolist (mode '(clojure-mode-hook clojurescript-mode-hook clojurec-mode-hook))
-    (add-hook mode 'setup-lisp-sexp-keybindings)
-    (add-hook mode 'setup-clojure-keybindings)))
+  (add-hook 'lisp-mode-hook 'setup-lisp-sexp-keybindings)
+  (add-hook 'lisp-mode-hook 'setup-common-lisp-keybindings)
+  (add-hook 'slime-mode-hook 'setup-common-lisp-keybindings))
 
 ;; =======================
-;; Lua Setup
+;; Fennel Setup
 ;; =======================
 
-;; Lua
-(use-package lua-mode
-  :mode "\\.lua\\'"
+;; Fennel with fennel-mode
+(use-package fennel-mode
   :config
-  (defun setup-lua-keybindings ()
-    "Setup Lua specific keybindings."
+  (defun setup-fennel-keybindings ()
+    "Setup essential Fennel specific keybindings."
     (my-local-leader-def
       :keymaps 'local
-      "eb" 'lua-send-buffer
-      "ed" 'lua-send-defun
-      "ee" 'lua-send-current-line
-      "er" 'lua-send-region
-      "'" 'lua-show-process-buffer
-      "rb" 'lua-restart-with-whole-file
-      "rr" 'run-lua
-      "rq" 'lua-kill-process))
+      ;; REPL & Evaluation
+      "'" 'fennel-repl
+      "eb" 'fennel-eval-buffer
+      "ee" 'fennel-eval-last-sexp
+      "er" 'fennel-eval-region
+      "el" 'fennel-load-file
 
-  (add-hook 'lua-mode-hook 'setup-lua-keybindings))
+      ;; Compilation
+      "cb" 'fennel-compile-buffer
+      "cf" 'fennel-compile-file
+
+      ;; Navigation
+      "gd" 'fennel-find-definition
+      "gb" 'xref-pop-marker-stack
+
+      ;; Help & Documentation
+      "hd" 'fennel-describe-symbol
+      "ha" 'fennel-apropos
+
+      ;; Development
+      "mb" 'fennel-macroexpand-1
+      "mM" 'fennel-macroexpand-all
+      "rf" 'fennel-format-buffer
+      "rb" 'switch-to-fennel-repl))
+
+  ;; Add hooks for both fennel-mode and potential lua-mode when editing compiled output
+  (add-hook 'fennel-mode-hook 'setup-lisp-sexp-keybindings)
+  (add-hook 'fennel-mode-hook 'setup-fennel-keybindings)
+  
+  ;; Optional: configure fennel-mode settings
+  (setq fennel-mode-switch-to-repl-after-reload nil
+        fennel-mode-auto-detect-repl-type t))
 
 ;; =======================
 ;; Theme
@@ -807,24 +766,11 @@
 (with-eval-after-load 'dired
   (evil-define-key 'normal dired-mode-map (kbd "SPC") nil))
 
+;; Ensure helm works well with evil
+(with-eval-after-load 'helm
+  (define-key helm-map (kbd "C-j") 'helm-next-line)
+  (define-key helm-map (kbd "C-k") 'helm-previous-line)
+  (define-key helm-map (kbd "C-h") 'helm-next-source)
+  (define-key helm-map (kbd "C-l") 'helm-previous-source))
+
 (message "Configuration loaded successfully!")
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(eldoc-documentation-functions nil t nil "Customized with use-package lsp-mode")
- '(safe-local-variable-values
-   '((eval progn
-           (make-variable-buffer-local 'cider-custom-cljs-repl-init-form)
-           (setq cider-custom-cljs-repl-init-form "(user/cljs-repl)")
-           (make-variable-buffer-local 'cider-jack-in-nrepl-middlewares)
-           (add-to-list 'cider-jack-in-nrepl-middlewares "shadow.cljs.devtools.server.nrepl/middleware"))
-     (cider-ns-refresh-after-fn . "integrant.repl/resume")
-     (cider-ns-refresh-before-fn . "integrant.repl/suspend"))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
