@@ -489,6 +489,174 @@
 (add-hook 'emacs-lisp-mode-hook 'setup-emacs-lisp-keybindings)
 
 ;; =======================
+;; C/C++ Development
+;; =======================
+
+;; LSP Mode for C/C++
+(use-package lsp-mode
+  :hook ((c-mode c++-mode) . lsp-deferred)
+  :commands (lsp lsp-deferred)
+  :config
+  (setq lsp-idle-delay 0.1              ; clangd is fast
+        lsp-completion-provider :capf
+        lsp-headerline-breadcrumb-enable t
+        lsp-modeline-code-actions-enable t
+        lsp-modeline-diagnostics-enable t
+        lsp-signature-auto-activate nil)  ; Use eldoc instead
+  
+  ;; Performance optimizations
+  (setq read-process-output-max (* 1024 1024)
+        lsp-log-io nil
+        lsp-keep-workspace-alive nil)
+  
+  ;; Integration with which-key
+  (with-eval-after-load 'which-key
+    (lsp-enable-which-key-integration)))
+
+;; LSP UI enhancements
+(use-package lsp-treemacs
+  :after (lsp-mode treemacs)
+  :commands lsp-treemacs-errors-list
+  :config
+  (lsp-treemacs-sync-mode 1))
+
+;; LSP Helm integration
+(use-package helm-lsp
+  :after (lsp-mode helm)
+  :commands helm-lsp-workspace-symbol)
+
+;; Debug Adapter Protocol
+(use-package dap-mode
+  :after lsp-mode
+  :config
+  (dap-auto-configure-mode)
+  (require 'dap-cpptools)
+  
+  ;; Default debug configuration template
+  (dap-register-debug-template
+   "C/C++ Debug"
+   (list :type "cppdbg"
+         :request "launch"
+         :name "Debug"
+         :program (expand-file-name "a.out" (projectile-project-root))
+         :args []
+         :stopAtEntry :json-false
+         :cwd (projectile-project-root)
+         :environment []
+         :externalConsole :json-false
+         :MIMode "gdb")))
+
+;; C/C++ specific keybindings
+(defun setup-c-cpp-keybindings ()
+  "Setup C/C++ development keybindings."
+  (my-local-leader-def
+    :keymaps 'local
+    
+    ;; LSP Navigation
+    "gd" 'lsp-find-definition
+    "gD" 'lsp-find-declaration  
+    "gr" 'lsp-find-references
+    "gi" 'lsp-find-implementation
+    "gt" 'lsp-find-type-definition
+    "gb" 'xref-pop-marker-stack
+    "gh" 'lsp-describe-thing-at-point
+    
+    ;; LSP Actions
+    "aa" 'lsp-execute-code-action
+    "ar" 'lsp-rename
+    "af" 'lsp-format-buffer
+    "aF" 'lsp-format-region
+    "ai" 'lsp-organize-imports
+    
+    ;; LSP Workspace
+    "wr" 'lsp-workspace-restart
+    "ws" 'lsp-workspace-shutdown
+    "wf" 'lsp-workspace-folders-add
+    "wF" 'lsp-workspace-folders-remove
+    "wb" 'lsp-workspace-blacklist-remove
+    
+    ;; Documentation & Help
+    "hh" 'lsp-describe-thing-at-point
+    "hs" 'lsp-signature-activate
+    "hi" 'lsp-ui-imenu
+    
+    ;; Symbol Search
+    "ss" 'helm-lsp-workspace-symbol
+    "sS" 'helm-lsp-global-workspace-symbol
+    "si" 'lsp-ui-imenu
+    
+    ;; Diagnostics & Errors
+    "el" 'lsp-treemacs-errors-list
+    "en" 'flycheck-next-error
+    "ep" 'flycheck-previous-error
+    "ec" 'flycheck-clear
+    "ev" 'flycheck-verify-setup
+    
+    ;; Debugging
+    "dd" 'dap-debug
+    "db" 'dap-breakpoint-toggle
+    "dB" 'dap-breakpoint-delete-all
+    "dc" 'dap-continue
+    "dn" 'dap-next
+    "ds" 'dap-step-in
+    "do" 'dap-step-out
+    "dr" 'dap-restart
+    "dq" 'dap-disconnect
+    "du" 'dap-ui-mode
+    "dl" 'dap-ui-locals
+    "dt" 'dap-ui-sessions
+    "dw" 'dap-ui-expressions-add
+    
+    ;; Compilation
+    "cc" 'compile
+    "cr" 'recompile
+    "ck" 'kill-compilation
+    "cp" 'projectile-compile-project
+    "ct" 'projectile-test-project
+    
+    ;; Code Generation & Snippets
+    "iy" 'yas-insert-snippet
+    "in" 'yas-new-snippet
+    "iv" 'yas-visit-snippet-file))
+
+;; Apply keybindings to C/C++ modes
+(add-hook 'c-mode-hook 'setup-c-cpp-keybindings)
+(add-hook 'c++-mode-hook 'setup-c-cpp-keybindings)
+
+;; C/C++ mode configuration
+(use-package cc-mode
+  :ensure nil  ; Built-in package
+  :config
+  ;; Style configuration
+  (setq c-default-style '((java-mode . "java")
+                          (awk-mode . "awk")
+                          (other . "linux"))
+        c-basic-offset 4
+        c-tab-always-indent t)
+  
+  ;; Auto-completion for headers
+  (setq c-electric-flag t
+        c-auto-newline nil
+        c-hungry-delete-key t))
+
+;; Modern C++ font-lock
+(use-package modern-cpp-font-lock
+  :diminish modern-c++-font-lock-mode
+  :hook (c++-mode . modern-c++-font-lock-mode))
+
+;; CMake support  
+(use-package cmake-mode
+  :mode (("\\.cmake\\'" . cmake-mode)
+         ("CMakeLists\\.txt\\'" . cmake-mode)))
+
+;; Add to global leader bindings for quick access
+(my-leader-def
+  ;; Quick C/C++ actions (extends existing bindings)
+  "cd" 'dap-debug
+  "cb" 'dap-breakpoint-toggle
+  "cl" 'lsp-treemacs-errors-list)
+
+;; =======================
 ;; Clojure Setup - 20 Essential Keybindings
 ;; =======================
 ;; Clojure with CIDER
@@ -713,6 +881,190 @@
   ;; Optional: configure fennel-mode settings
   (setq fennel-mode-switch-to-repl-after-reload nil
         fennel-mode-auto-detect-repl-type t))
+
+;; =======================
+;; Lua Development
+;; =======================
+
+;; Lua mode
+(use-package lua-mode
+  :mode "\\.lua\\'"
+  :config
+  (setq lua-indent-level 2
+        lua-indent-string-contents t
+        lua-prefix-key nil))  ; We'll use our own keybindings
+
+;; LSP support for Lua
+(use-package lsp-mode
+  :hook (lua-mode . lsp-deferred)
+  :config
+  ;; Configure lua-language-server settings
+  (lsp-register-custom-settings
+   '(("Lua.telemetry.enable" nil t)
+     ("Lua.completion.enable" t t)
+     ("Lua.completion.callSnippet" "Both" t)
+     ("Lua.completion.keywordSnippet" "Both" t)
+     ("Lua.diagnostics.globals" ["vim" "awesome" "client" "root" "screen"] t)
+     ("Lua.workspace.checkThirdParty" nil t))))
+
+;; Company backend for Lua
+(use-package company-lua
+  :after (company lua-mode)
+  :config
+  (add-to-list 'company-backends 'company-lua))
+
+;; Lua REPL integration
+(use-package lua-mode
+  :config
+  (defun lua-send-current-line ()
+    "Send current line to Lua REPL."
+    (interactive)
+    (lua-send-region (line-beginning-position) (line-end-position)))
+  
+  (defun lua-send-buffer ()
+    "Send entire buffer to Lua REPL."
+    (interactive)
+    (lua-send-region (point-min) (point-max)))
+  
+  (defun lua-send-defun ()
+    "Send current function to Lua REPL."
+    (interactive)
+    (save-excursion
+      (lua-beginning-of-proc)
+      (let ((start (point)))
+        (lua-end-of-proc)
+        (lua-send-region start (point))))))
+
+;; Lua-specific keybindings
+(defun setup-lua-keybindings ()
+  "Setup Lua development keybindings."
+  (my-local-leader-def
+    :keymaps 'local
+    
+    ;; LSP Navigation
+    "gd" 'lsp-find-definition
+    "gD" 'lsp-find-declaration  
+    "gr" 'lsp-find-references
+    "gi" 'lsp-find-implementation
+    "gt" 'lsp-find-type-definition
+    "gb" 'xref-pop-marker-stack
+    "gh" 'lsp-describe-thing-at-point
+    
+    ;; LSP Actions
+    "aa" 'lsp-execute-code-action
+    "ar" 'lsp-rename
+    "af" 'lsp-format-buffer
+    "aF" 'lsp-format-region
+    "ai" 'lsp-organize-imports
+    
+    ;; LSP Workspace
+    "wr" 'lsp-workspace-restart
+    "ws" 'lsp-workspace-shutdown
+    "wf" 'lsp-workspace-folders-add
+    "wF" 'lsp-workspace-folders-remove
+    
+    ;; Documentation & Help
+    "hh" 'lsp-describe-thing-at-point
+    "hs" 'lsp-signature-activate
+    "hi" 'lsp-ui-imenu
+    "hd" 'lua-search-documentation
+    
+    ;; Symbol Search
+    "ss" 'helm-lsp-workspace-symbol
+    "sS" 'helm-lsp-global-workspace-symbol
+    "si" 'lsp-ui-imenu
+    
+    ;; Diagnostics & Errors
+    "el" 'lsp-treemacs-errors-list
+    "en" 'flycheck-next-error
+    "ep" 'flycheck-previous-error
+    "ec" 'flycheck-clear
+    "ev" 'flycheck-verify-setup
+    
+    ;; REPL & Evaluation
+    "'" 'lua-show-process-buffer
+    "sb" 'lua-send-buffer
+    "sd" 'lua-send-defun
+    "sl" 'lua-send-current-line
+    "sr" 'lua-send-region
+    "si" 'lua-start-process
+    "sq" 'lua-kill-process
+    "ss" 'lua-restart-with-whole-file
+    
+    ;; Code Navigation
+    "gf" 'lua-forward-sexp
+    "gb" 'lua-backward-sexp
+    "gn" 'lua-next-func-name
+    "gp" 'lua-prev-func-name
+    "ga" 'lua-beginning-of-proc
+    "ge" 'lua-end-of-proc
+    
+    ;; Compilation & Syntax Check
+    "cc" 'lua-send-buffer
+    "cf" 'lua-send-current-line
+    "cs" 'lua-check-syntax
+    
+    ;; Code Generation & Snippets
+    "iy" 'yas-insert-snippet
+    "in" 'yas-new-snippet
+    "iv" 'yas-visit-snippet-file
+    
+    ;; Indentation & Formatting
+    "=l" 'lua-indent-line
+    "=r" 'indent-region
+    "=b" 'lsp-format-buffer
+    "fb" 'lsp-format-buffer
+    "fr" 'lsp-format-region))
+
+;; Apply keybindings to Lua mode
+(add-hook 'lua-mode-hook 'setup-lua-keybindings)
+
+;; Enhanced Lua development setup
+(add-hook 'lua-mode-hook
+          (lambda ()
+            ;; Enable eldoc for function signatures
+            (eldoc-mode 1)
+            ;; Set up indentation
+            (setq-local tab-width lua-indent-level)
+            (setq-local indent-tabs-mode nil)
+            ;; Enable auto-pairing
+            (electric-pair-local-mode 1)))
+
+;; Lua syntax checking with flycheck
+(use-package flycheck
+  :config
+  (flycheck-define-checker lua-luacheck
+    "A Lua syntax checker using luacheck."
+    :command ("luacheck" "--formatter" "plain" "--codes" source)
+    :error-patterns
+    ((warning line-start (file-name) ":" line ":" column ": " (message) line-end))
+    :modes lua-mode)
+  
+  (add-to-list 'flycheck-checkers 'lua-luacheck))
+
+;; Love2D game development support
+(use-package love-minor-mode
+  :hook (lua-mode . love-minor-mode)
+  :config
+  (defun setup-love2d-keybindings ()
+    "Additional keybindings for Love2D development."
+    (when love-minor-mode
+      (my-local-leader-def
+        :keymaps 'local
+        ;; Love2D specific commands
+        "lr" 'love-start
+        "lq" 'love-stop
+        "ll" 'love-reload
+        "lf" 'love-run-file)))
+  
+  (add-hook 'love-minor-mode-hook 'setup-love2d-keybindings))
+
+;; Add to global leader bindings for quick access
+(my-leader-def
+  ;; Quick Lua actions (extends existing bindings)
+  "lr" 'lua-send-region
+  "lb" 'lua-send-buffer
+  "li" 'lua-start-process)
 
 ;; =======================
 ;; Theme
