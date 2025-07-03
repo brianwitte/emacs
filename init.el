@@ -104,6 +104,7 @@
   :config
   (xclip-mode 1))
 
+
 ;; =======================
 ;; Helm Configuration
 ;; =======================
@@ -112,14 +113,16 @@
   :diminish helm-mode
   :init
   (setq helm-command-prefix-key "C-c h"
-        helm-split-window-inside-p t
+        helm-split-window-inside-p nil
+        helm-split-window-default-side 'below
+        helm-always-two-windows t
         helm-move-to-line-cycle-in-source t
         helm-ff-search-library-in-sexp t
         helm-scroll-amount 8
         helm-ff-file-name-history-use-recentf t
         helm-echo-input-in-header-line t
-        helm-autoresize-max-height 0
-        helm-autoresize-min-height 20
+        helm-autoresize-max-height 30
+        helm-autoresize-min-height 10
         helm-buffers-fuzzy-matching t
         helm-recentf-fuzzy-match t
         helm-locate-fuzzy-match t
@@ -135,6 +138,13 @@
   :config
   (helm-mode 1)
   (helm-autoresize-mode 1)
+  
+  ;; Force all helm buffers to bottom
+  (add-to-list 'display-buffer-alist
+               '("\\*helm.*\\*"
+                 (display-buffer-in-side-window)
+                 (side . bottom)
+                 (window-height . 0.3)))
   
   ;; Hide header line in helm minibuffer
   (defun helm-hide-minibuffer-maybe ()
@@ -173,6 +183,7 @@
         helm-swoop-move-to-line-cycle t
         helm-swoop-use-line-number-face t
         helm-swoop-use-fuzzy-match t))
+
 
 ;; =======================
 ;; Evil Mode & Keybindings
