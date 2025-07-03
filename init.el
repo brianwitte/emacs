@@ -701,6 +701,16 @@
   (add-hook 'clojure-mode-hook 'setup-clojure-keybindings)
   (add-hook 'cider-mode-hook 'setup-clojure-keybindings))
 
+(use-package reformatter
+  :ensure t
+  :config
+  (reformatter-define cljfmt
+    :program "cljfmt"
+    :args '("fix" "-")
+    :stdin t
+    :stdout t
+    :lighter " cljfmt"))
+
 ;; =======================
 ;; Common Lisp Setup
 ;; =======================
