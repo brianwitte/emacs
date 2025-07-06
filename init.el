@@ -1132,8 +1132,6 @@
     (message "Done.")))
 
 (global-hl-line-mode 1)
-(set-face-background 'hl-line "#228B22")  ; Forest green
-
 
 ;; =======================
 ;; Final Setup
