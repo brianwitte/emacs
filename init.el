@@ -104,86 +104,182 @@
   :config
   (xclip-mode 1))
 
-
-;; =======================
-;; Helm Configuration
-;; =======================
-
-(use-package helm
-  :diminish helm-mode
+;; Enable Vertico.
+(use-package vertico
+  :custom
+  ;; (vertico-scroll-margin 0) ;; Different scroll margin
+  (vertico-count 20) ;; Show more candidates
+  ;; (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
+  ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
   :init
-  (setq helm-command-prefix-key "C-c h"
-        helm-split-window-inside-p nil
-        helm-split-window-default-side 'below
-        helm-always-two-windows t
-        helm-move-to-line-cycle-in-source t
-        helm-ff-search-library-in-sexp t
-        helm-scroll-amount 8
-        helm-ff-file-name-history-use-recentf t
-        helm-echo-input-in-header-line t
-        helm-autoresize-max-height 30
-        helm-autoresize-min-height 10
-        helm-buffers-fuzzy-matching t
-        helm-recentf-fuzzy-match t
-        helm-locate-fuzzy-match t
-        helm-M-x-fuzzy-match t
-        helm-semantic-fuzzy-match t
-        helm-imenu-fuzzy-match t
-        helm-completion-in-region-fuzzy-match t
-        helm-candidate-number-limit 150
-        helm-boring-file-regexp-list
-        '("\\.git$" "\\.hg$" "\\.svn$" "\\.CVS$" "\\._darcs$" "\\.la$" "\\.o$" "\\.i$")
-        helm-ff-skip-boring-files t)
-  
+  (vertico-mode))
+
+;; Persist history over Emacs restarts. Vertico sorts by history position.
+(use-package savehist
+  :init
+  (savehist-mode))
+
+;; Emacs minibuffer configurations.
+(use-package emacs
+  :custom
+  ;; Enable context menu. `vertico-multiform-mode' adds a menu in the minibuffer
+  ;; to switch display modes.
+  (context-menu-mode t)
+  ;; Support opening new minibuffers from inside existing minibuffers.
+  (enable-recursive-minibuffers t)
+  ;; Hide commands in M-x which do not work in the current mode.  Vertico
+  ;; commands are hidden in normal buffers. This setting is useful beyond
+  ;; Vertico.
+  (read-extended-command-predicate #'command-completion-default-include-p)
+  ;; Do not allow the cursor in the minibuffer prompt
+  (minibuffer-prompt-properties
+   '(read-only t cursor-intangible t face minibuffer-prompt)))
+
+;; Optionally use the `orderless' completion style.
+(use-package orderless
+  :custom
+  ;; Configure a custom style dispatcher (see the Consult wiki)
+  ;; (orderless-style-dispatchers '(+orderless-consult-dispatch orderless-affix-dispatch))
+  ;; (orderless-component-separator #'orderless-escapable-split-on-space)
+  (completion-styles '(orderless basic))
+  (completion-category-defaults nil)
+  (completion-category-overrides '((file (styles partial-completion)))))
+
+;; Marginalia: Rich annotations in the minibuffer
+(use-package marginalia
+  :init
+  (marginalia-mode))
+
+;; Embark: Act on targets
+(use-package embark
+  :bind
+  (("C-." . embark-act)         ;; pick some comfortable binding
+   ("C-;" . embark-dwim)        ;; good alternative: M-.
+   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+  :init
+  ;; Optionally replace the key help with a completing-read interface
+  (setq prefix-help-command #'embark-prefix-help-command)
   :config
-  (helm-mode 1)
-  (helm-autoresize-mode 1)
-  
-  ;; Force all helm buffers to bottom
+  ;; Hide the mode line of the Embark live/completions buffers
   (add-to-list 'display-buffer-alist
-               '("\\*helm.*\\*"
-                 (display-buffer-in-side-window)
-                 (side . bottom)
-                 (window-height . 0.3)))
-  
-  ;; Hide header line in helm minibuffer
-  (defun helm-hide-minibuffer-maybe ()
-    (when (with-helm-buffer helm-echo-input-in-header-line)
-      (let ((ov (make-overlay (point-min) (point-max) nil nil t)))
-        (overlay-put ov 'window (selected-window))
-        (overlay-put ov 'face (let ((bg-color (face-background 'default nil)))
-                                `(:background ,bg-color :foreground ,bg-color)))
-        (setq-local cursor-type nil))))
-  (add-hook 'helm-minibuffer-set-up-hook 'helm-hide-minibuffer-maybe)
-  
-  ;; Better helm-find-files navigation
-  (define-key helm-find-files-map (kbd "C-h") 'helm-find-files-up-one-level)
-  (define-key helm-find-files-map (kbd "C-l") 'helm-execute-persistent-action))
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
 
-(use-package helm-projectile
-  :after (helm projectile)
+;; Consult users will also want the embark-consult package.
+(use-package embark-consult
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
+
+;; Consult: Consulting completing-read
+(use-package consult
+  :bind (;; C-c bindings in `mode-specific-map'
+         ("C-c M-x" . consult-mode-command)
+         ("C-c h" . consult-history)
+         ("C-c k" . consult-kmacro)
+         ("C-c m" . consult-man)
+         ("C-c i" . consult-info)
+         ([remap Info-search] . consult-info)
+         ;; C-x bindings in `ctl-x-map'
+         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
+         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+         ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
+         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+         ;; Custom M-# bindings for fast register access
+         ("M-#" . consult-register-load)
+         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
+         ("C-M-#" . consult-register)
+         ;; Other custom bindings
+         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
+         ;; M-g bindings in `goto-map'
+         ("M-g e" . consult-compile-error)
+         ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
+         ("M-g g" . consult-goto-line)             ;; orig. goto-line
+         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
+         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
+         ("M-g m" . consult-mark)
+         ("M-g k" . consult-global-mark)
+         ("M-g i" . consult-imenu)
+         ("M-g I" . consult-imenu-multi)
+         ;; M-s bindings in `search-map'
+         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+         ("M-s c" . consult-locate)
+         ("M-s g" . consult-grep)
+         ("M-s G" . consult-git-grep)
+         ("M-s r" . consult-ripgrep)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ("M-s k" . consult-keep-lines)
+         ("M-s u" . consult-focus-lines)
+         ;; Isearch integration
+         ("M-s e" . consult-isearch-history)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+         ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
+         ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+         ;; Minibuffer history
+         :map minibuffer-local-map
+         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+  :init
+  ;; Optionally configure the register formatting. This improves the register
+  ;; preview for `consult-register', `consult-register-load',
+  ;; `consult-register-store' and the Emacs built-ins.
+  (setq register-preview-delay 0.5
+        register-preview-function #'consult-register-format)
+
+  ;; Optionally tweak the register preview window.
+  ;; This adds thin lines, sorting and hides the mode line of the window.
+  (advice-add #'register-preview :override #'consult-register-window)
+
+  ;; Use Consult to select xref locations with preview
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+
   :config
-  (helm-projectile-on))
+  ;; Optionally configure preview. The default value
+  ;; is 'any, such that any key triggers the preview.
+  ;; (setq consult-preview-key 'any)
+  ;; (setq consult-preview-key "M-.")
+  ;; (setq consult-preview-key '("S-<down>" "S-<up>"))
+  ;; For some commands and buffer sources it is useful to configure the
+  ;; :preview-key on a per-command basis using the `consult-customize' macro.
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.2 any)
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-bookmark consult--source-file-register
+   consult--source-recent-file consult--source-project-recent-file
+   ;; :preview-key "M-."
+   :preview-key '(:debounce 0.4 any))
 
-(use-package helm-ag
-  :after helm
-  :config
-  (setq helm-ag-base-command "ag --nocolor --nogroup --ignore-case"
-        helm-ag-command-option "--all-text"
-        helm-ag-insert-at-point 'symbol
-        helm-ag-fuzzy-match t))
+  ;; Optionally configure the narrowing key.
+  ;; Both < and C-+ work reasonably well.
+  (setq consult-narrow-key "<") ;; "C-+"
 
-(use-package helm-swoop
-  :after helm
-  :config
-  (setq helm-multi-swoop-edit-save t
-        helm-swoop-split-with-multiple-windows nil
-        helm-swoop-split-direction 'split-window-vertically
-        helm-swoop-speed-or-color nil
-        helm-swoop-move-to-line-cycle t
-        helm-swoop-use-line-number-face t
-        helm-swoop-use-fuzzy-match t))
+  ;; Optionally make narrowing help available in the minibuffer.
+  ;; You may want to use `embark-prefix-help-command' or which-key instead.
+  ;; (define-key consult-narrow-map (vconcat consult-narrow-key "?") #'consult-narrow-help)
 
+  ;; By default `consult-project-function' uses `project-root' from project.el.
+  ;; Optionally configure a different project root function.
+  ;; There are multiple reasonable alternatives to chose from.
+  ;;;; 1. project.el (the default)
+  ;; (setq consult-project-function #'consult--default-project--function)
+  ;;;; 2. vc.el (vc-root-dir)
+  ;; (setq consult-project-function (lambda (_) (vc-root-dir)))
+  ;;;; 3. locate-dominating-file
+  ;; (setq consult-project-function (lambda (_) (locate-dominating-file "." ".git")))
+  ;;;; 4. projectile.el (projectile-project-root)
+  (setq consult-project-function (lambda (_) (projectile-project-root)))
+  ;;;; 5. No project support
+  ;; (setq consult-project-function nil)
+)
 
 ;; =======================
 ;; Evil Mode & Keybindings
@@ -209,8 +305,7 @@
 
   ;; Initial states
   (evil-set-initial-state 'messages-buffer-mode 'normal)
-  (evil-set-initial-state 'dashboard-mode 'normal)
-  (evil-set-initial-state 'helm-major-mode 'emacs))
+  (evil-set-initial-state 'dashboard-mode 'normal))
 
 (use-package evil-collection
   :after evil
@@ -243,18 +338,18 @@
   ;; Global leader bindings
   (my-leader-def
     ;; Core commands
-    ":" 'helm-M-x
-    "SPC" 'helm-projectile-find-file
+    ":" 'execute-extended-command
+    "SPC" 'project-find-file
     "." 'embark-act
-    "," 'helm-buffers-list
+    "," 'consult-buffer
 
     ;; Files
-    "ff" 'helm-find-files
+    "ff" 'find-file
     "fs" 'save-buffer
-    "fr" 'helm-recentf
+    "fr" 'consult-recent-file
 
     ;; Buffers
-    "bb" 'helm-buffers-list
+    "bb" 'consult-buffer
     "bd" 'kill-buffer
     "bi" 'ibuffer
     "bn" 'next-buffer
@@ -273,44 +368,45 @@
     "wr" 'my/resize-window
 
     ;; Projects
-    "pp" 'helm-projectile-switch-project
-    "pb" 'helm-projectile-switch-to-buffer
+    "pp" 'projectile-switch-project
+    "pb" 'consult-project-buffer
     "pc" 'projectile-compile-project
     "pk" 'projectile-kill-buffers
     "pd" 'projectile-dired
     "pr" 'projectile-replace
-    "pf" 'helm-projectile-find-file
-    "pg" 'helm-projectile-grep
+    "pf" 'project-find-file
+    "pg" 'consult-ripgrep
 
     ;; VTERM
     "ot" 'vterm
 
     ;; Search & Navigation
-    "ss" 'helm-swoop
-    "sS" 'helm-multi-swoop-all
-    "sp" 'helm-multi-swoop-current-mode
-    "sf" 'helm-find
-    "sg" 'helm-ag
-    "sG" 'helm-ag-project-root
-    "sl" 'helm-locate
-    "sm" 'helm-all-mark-rings
-    "sr" 'helm-resume
-    "so" 'helm-occur
-    "si" 'helm-imenu
-    "sI" 'helm-imenu-in-all-buffers
+    "ss" 'consult-line
+    "sS" 'consult-line-multi
+    "sp" 'consult-line-multi
+    "sf" 'consult-find
+    "sg" 'consult-grep
+    "sG" 'consult-git-grep
+    "sr" 'consult-ripgrep
+    "sl" 'consult-locate
+    "sm" 'consult-mark
+    "sR" 'consult-resume
+    "so" 'consult-outline
+    "si" 'consult-imenu
+    "sI" 'consult-imenu-multi
 
     ;; Tools
     "op" 'treemacs
     "dl" 'downcase-current-line
 
-    ;; Helm specific
-    "hh" 'helm-help
-    "hm" 'helm-man-woman
-    "hc" 'helm-colors
-    "hf" 'helm-apropos
-    "hy" 'helm-show-kill-ring
-    "hx" 'helm-register
-    "hz" 'helm-complex-command-history))
+    ;; Consult specific
+    "hh" 'describe-function
+    "hm" 'consult-man
+    "hc" 'list-colors-display
+    "hf" 'describe-function
+    "hy" 'consult-yank-pop
+    "hx" 'consult-register
+    "hz" 'consult-complex-command))
 
 ;; =======================
 ;; Completion & Navigation
@@ -344,13 +440,11 @@
         (alist-get ?i avy-dispatch-alist) 'my/avy-action-insert-newline
         (alist-get ?K avy-dispatch-alist) 'my/avy-action-kill-whole-line))
 
-(use-package consult)
-
 (use-package projectile
   :diminish projectile-mode
   :config
   (projectile-mode +1)
-  (setq projectile-completion-system 'helm
+  (setq projectile-completion-system 'default
         projectile-enable-caching t))
 
 (use-package treemacs)
@@ -531,11 +625,6 @@
   :config
   (lsp-treemacs-sync-mode 1))
 
-;; LSP Helm integration
-(use-package helm-lsp
-  :after (lsp-mode helm)
-  :commands helm-lsp-workspace-symbol)
-
 ;; Debug Adapter Protocol
 (use-package dap-mode
   :after lsp-mode
@@ -589,12 +678,12 @@
     ;; Documentation & Help
     "hh" 'lsp-describe-thing-at-point
     "hs" 'lsp-signature-activate
-    "hi" 'lsp-ui-imenu
+    "hi" 'consult-imenu
     
     ;; Symbol Search
-    "ss" 'helm-lsp-workspace-symbol
-    "sS" 'helm-lsp-global-workspace-symbol
-    "si" 'lsp-ui-imenu
+    "ss" 'consult-lsp-symbols
+    "sS" 'consult-lsp-symbols
+    "si" 'consult-imenu
     
     ;; Diagnostics & Errors
     "el" 'lsp-treemacs-errors-list
@@ -987,13 +1076,13 @@
     ;; Documentation & Help
     "hh" 'lsp-describe-thing-at-point
     "hs" 'lsp-signature-activate
-    "hi" 'lsp-ui-imenu
+    "hi" 'consult-imenu
     "hd" 'lua-search-documentation
     
     ;; Symbol Search
-    "ss" 'helm-lsp-workspace-symbol
-    "sS" 'helm-lsp-global-workspace-symbol
-    "si" 'lsp-ui-imenu
+    "ss" 'consult-lsp-symbols
+    "sS" 'consult-lsp-symbols
+    "si" 'consult-imenu
     
     ;; Diagnostics & Errors
     "el" 'lsp-treemacs-errors-list
@@ -1088,6 +1177,30 @@
   "li" 'lua-start-process)
 
 ;; =======================
+;; LSP Consult Integration
+;; =======================
+
+;; Add consult-lsp for better LSP symbol search
+(use-package consult-lsp
+  :after (consult lsp-mode)
+  :config
+  ;; Define custom consult source for LSP symbols if needed
+  (setq consult-lsp-symbols-narrow
+        '((?f . "Function")
+          (?v . "Variable") 
+          (?c . "Class")
+          (?t . "Type")
+          (?m . "Module")
+          (?n . "Namespace")
+          (?p . "Package")
+          (?s . "Struct")
+          (?e . "Enum")
+          (?i . "Interface")
+          (?o . "Object")
+          (?k . "Key")
+          (?r . "Reference"))))
+
+;; =======================
 ;; Theme
 ;; =======================
 
@@ -1140,12 +1253,5 @@
 ;; Dired integration with Evil
 (with-eval-after-load 'dired
   (evil-define-key 'normal dired-mode-map (kbd "SPC") nil))
-
-;; Ensure helm works well with evil
-(with-eval-after-load 'helm
-  (define-key helm-map (kbd "C-j") 'helm-next-line)
-  (define-key helm-map (kbd "C-k") 'helm-previous-line)
-  (define-key helm-map (kbd "C-h") 'helm-next-source)
-  (define-key helm-map (kbd "C-l") 'helm-previous-source))
 
 (message "Configuration loaded successfully!")
