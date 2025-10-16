@@ -699,7 +699,9 @@
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
   :hook ((go-mode . lsp-deferred)
-         (go-ts-mode . lsp-deferred))
+         (go-ts-mode . lsp-deferred)
+         (ruby-mode . lsp-deferred)
+         )
   :init
   ;; Performance tuning
   (setq lsp-idle-delay 0.5
@@ -737,7 +739,11 @@
                            (vendor . t))
         lsp-go-use-gofumpt t
         lsp-go-goimports-local ""
-        lsp-go-link-target "pkg.go.dev"))
+        lsp-go-link-target "pkg.go.dev")
+
+  ;; Ruby specific LSP settings
+  (setq lsp-ruby-lsp-use-bundler nil)
+  )
 
 (use-package lsp-ui
   :after lsp-mode
@@ -1043,7 +1049,6 @@
   :hook (go-mode . flycheck-golangci-lint-setup)
   :config
   (setq flycheck-golangci-lint-enable-all t))
-
 
 ;; =======================
 ;; LSP Consult Integration
