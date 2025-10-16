@@ -594,170 +594,7 @@
 (add-hook 'emacs-lisp-mode-hook 'setup-emacs-lisp-keybindings)
 
 ;; =======================
-;; C/C++ Development
-;; =======================
-
-;; LSP Mode for C/C++
-(use-package lsp-mode
-  :hook ((c-mode c++-mode) . lsp-deferred)
-  :commands (lsp lsp-deferred)
-  :config
-  (setq lsp-idle-delay 0.1              ; clangd is fast
-        lsp-completion-provider :capf
-        lsp-headerline-breadcrumb-enable t
-        lsp-modeline-code-actions-enable t
-        lsp-modeline-diagnostics-enable t
-        lsp-signature-auto-activate nil)  ; Use eldoc instead
-  
-  ;; Performance optimizations
-  (setq read-process-output-max (* 1024 1024)
-        lsp-log-io nil
-        lsp-keep-workspace-alive nil)
-  
-  ;; Integration with which-key
-  (with-eval-after-load 'which-key
-    (lsp-enable-which-key-integration)))
-
-;; LSP UI enhancements
-(use-package lsp-treemacs
-  :after (lsp-mode treemacs)
-  :commands lsp-treemacs-errors-list
-  :config
-  (lsp-treemacs-sync-mode 1))
-
-;; Debug Adapter Protocol
-(use-package dap-mode
-  :after lsp-mode
-  :config
-  (dap-auto-configure-mode)
-  (require 'dap-cpptools)
-  
-  ;; Default debug configuration template
-  (dap-register-debug-template
-   "C/C++ Debug"
-   (list :type "cppdbg"
-         :request "launch"
-         :name "Debug"
-         :program (expand-file-name "a.out" (projectile-project-root))
-         :args []
-         :stopAtEntry :json-false
-         :cwd (projectile-project-root)
-         :environment []
-         :externalConsole :json-false
-         :MIMode "gdb")))
-
-;; C/C++ specific keybindings
-(defun setup-c-cpp-keybindings ()
-  "Setup C/C++ development keybindings."
-  (my-local-leader-def
-    :keymaps 'local
-    
-    ;; LSP Navigation
-    "gd" 'lsp-find-definition
-    "gD" 'lsp-find-declaration  
-    "gr" 'lsp-find-references
-    "gi" 'lsp-find-implementation
-    "gt" 'lsp-find-type-definition
-    "gb" 'xref-pop-marker-stack
-    "gh" 'lsp-describe-thing-at-point
-    
-    ;; LSP Actions
-    "aa" 'lsp-execute-code-action
-    "ar" 'lsp-rename
-    "af" 'lsp-format-buffer
-    "aF" 'lsp-format-region
-    "ai" 'lsp-organize-imports
-    
-    ;; LSP Workspace
-    "wr" 'lsp-workspace-restart
-    "ws" 'lsp-workspace-shutdown
-    "wf" 'lsp-workspace-folders-add
-    "wF" 'lsp-workspace-folders-remove
-    "wb" 'lsp-workspace-blacklist-remove
-    
-    ;; Documentation & Help
-    "hh" 'lsp-describe-thing-at-point
-    "hs" 'lsp-signature-activate
-    "hi" 'consult-imenu
-    
-    ;; Symbol Search
-    "ss" 'consult-lsp-symbols
-    "sS" 'consult-lsp-symbols
-    "si" 'consult-imenu
-    
-    ;; Diagnostics & Errors
-    "el" 'lsp-treemacs-errors-list
-    "en" 'flycheck-next-error
-    "ep" 'flycheck-previous-error
-    "ec" 'flycheck-clear
-    "ev" 'flycheck-verify-setup
-    
-    ;; Debugging
-    "dd" 'dap-debug
-    "db" 'dap-breakpoint-toggle
-    "dB" 'dap-breakpoint-delete-all
-    "dc" 'dap-continue
-    "dn" 'dap-next
-    "ds" 'dap-step-in
-    "do" 'dap-step-out
-    "dr" 'dap-restart
-    "dq" 'dap-disconnect
-    "du" 'dap-ui-mode
-    "dl" 'dap-ui-locals
-    "dt" 'dap-ui-sessions
-    "dw" 'dap-ui-expressions-add
-    
-    ;; Compilation
-    "cc" 'compile
-    "cr" 'recompile
-    "ck" 'kill-compilation
-    "cp" 'projectile-compile-project
-    "ct" 'projectile-test-project
-    
-    ;; Code Generation & Snippets
-    "iy" 'yas-insert-snippet
-    "in" 'yas-new-snippet
-    "iv" 'yas-visit-snippet-file))
-
-;; Apply keybindings to C/C++ modes
-(add-hook 'c-mode-hook 'setup-c-cpp-keybindings)
-(add-hook 'c++-mode-hook 'setup-c-cpp-keybindings)
-
-;; C/C++ mode configuration
-(use-package cc-mode
-  :ensure nil  ; Built-in package
-  :config
-  ;; Style configuration
-  (setq c-default-style '((java-mode . "java")
-                          (awk-mode . "awk")
-                          (other . "linux"))
-        c-basic-offset 4
-        c-tab-always-indent t)
-  
-  ;; Auto-completion for headers
-  (setq c-electric-flag t
-        c-auto-newline nil
-        c-hungry-delete-key t))
-
-;; Modern C++ font-lock
-(use-package modern-cpp-font-lock
-  :diminish modern-c++-font-lock-mode
-  :hook (c++-mode . modern-c++-font-lock-mode))
-
-;; CMake support  
-(use-package cmake-mode
-  :mode (("\\.cmake\\'" . cmake-mode)
-         ("CMakeLists\\.txt\\'" . cmake-mode)))
-
-;; Add to global leader bindings for quick access
-(my-leader-def
-  ;; Quick C/C++ actions (extends existing bindings)
-  "cd" 'dap-debug
-  "cb" 'dap-breakpoint-toggle
-  "cl" 'lsp-treemacs-errors-list)
-
-;; =======================
-;; Clojure Setup - 20 Essential Keybindings
+;; Clojure Setup 
 ;; =======================
 ;; Clojure with CIDER
 (use-package cider
@@ -812,143 +649,6 @@
     :lighter " cljfmt"))
 
 ;; =======================
-;; Common Lisp Setup
-;; =======================
-
-;; Common Lisp with SLIME
-(use-package slime
-  :config
-  (setq inferior-lisp-program "sbcl") ; or your preferred Lisp implementation
-  (setq slime-contribs '(slime-fancy))
-  
-  (defun setup-common-lisp-keybindings ()
-    "Setup comprehensive Common Lisp/SLIME specific keybindings."
-    (my-local-leader-def
-      :keymaps 'local
-      ;; REPL Connection & Management
-      "'" 'slime
-      "rq" 'slime-quit-lisp
-      "rr" 'slime-restart-inferior-lisp
-      "rb" 'slime-switch-to-output-buffer
-      "rB" 'slime-repl-clear-buffer
-      "rn" 'slime-repl-set-package
-      "rc" 'slime-repl-clear-output
-      "rl" 'slime-load-file-set-package
-      "rp" 'slime-pprint-eval-last-expression
-      "rP" 'slime-pprint-eval-region
-
-      ;; Evaluation
-      "eb" 'slime-eval-buffer
-      "ed" 'slime-eval-defun
-      "ee" 'slime-eval-last-expression
-      "er" 'slime-eval-region
-      "eE" 'slime-interactive-eval
-      "el" 'slime-eval-load-file
-      "ef" 'slime-load-file
-      "ep" 'slime-pprint-eval-last-expression
-      "eP" 'slime-pprint-eval-region
-      "em" 'slime-macroexpand-1
-      "eM" 'slime-macroexpand-all
-      "ex" 'slime-expand-1
-
-      ;; Compilation
-      "cb" 'slime-compile-file
-      "cc" 'slime-compile-defun
-      "cr" 'slime-compile-region
-      "cl" 'slime-load-file
-      "cL" 'slime-compile-and-load-file
-
-      ;; Navigation & Finding
-      "gd" 'slime-edit-definition
-      "gD" 'slime-edit-definition-other-window
-      "gb" 'slime-pop-find-definition-stack
-      "gn" 'slime-next-note
-      "gN" 'slime-previous-note
-      "gc" 'slime-list-callers
-      "gC" 'slime-list-callees
-      "gr" 'slime-who-references
-      "gw" 'slime-who-calls
-      "gs" 'slime-who-sets
-      "gb" 'slime-who-binds
-      "gm" 'slime-who-macroexpands
-      "gu" 'slime-disassemble-symbol
-
-      ;; Help & Documentation
-      "hd" 'slime-describe-symbol
-      "hf" 'slime-describe-function
-      "ha" 'slime-apropos
-      "hA" 'slime-apropos-all
-      "hp" 'slime-apropos-package
-      "hH" 'slime-hyperspec-lookup
-      "h~" 'common-lisp-hyperspec
-
-      ;; Testing
-      "tt" 'slime-toggle-trace-fdefinition
-      "tT" 'slime-untrace-all
-      "tf" 'slime-toggle-fancy-trace
-
-      ;; Debugging
-      "db" 'slime-toggle-break-on-signals
-      "dc" 'slime-debug-continue
-      "da" 'slime-debug-abort
-      "dq" 'slime-debug-quit
-      "dr" 'slime-debug-restart
-      "ds" 'slime-debug-step
-      "dd" 'slime-debug-details
-      "di" 'slime-inspect
-      "dI" 'slime-inspect-definition
-
-      ;; Profiling
-      "pb" 'slime-profile-by-substring
-      "pf" 'slime-profile-functions
-      "pp" 'slime-profile-package
-      "pr" 'slime-profile-report
-      "pR" 'slime-profile-reset
-      "pu" 'slime-unprofile-all
-
-      ;; Packages
-      "pd" 'slime-describe-package
-      "ps" 'slime-set-package
-      "pf" 'slime-find-package
-
-      ;; Xref
-      "xc" 'slime-list-callers
-      "xC" 'slime-list-callees
-      "xr" 'slime-who-references
-      "xb" 'slime-who-binds
-      "xs" 'slime-who-sets
-      "xm" 'slime-who-macroexpands
-
-      ;; Inspector
-      "id" 'slime-inspect-definition
-      "ii" 'slime-inspect
-      "in" 'slime-inspector-next
-      "ip" 'slime-inspector-previous
-      "iq" 'slime-inspector-quit
-      "ir" 'slime-inspector-reinspect
-      "iw" 'slime-inspector-copy-down
-
-      ;; Scratch/Notes
-      "ns" 'slime-scratch
-      "nS" 'slime-scratch-buffer
-
-      ;; System interaction
-      "sy" 'slime-sync-package-and-default-directory
-      "sp" 'slime-set-default-directory
-
-      ;; Miscellaneous
-      "mb" 'slime-macroexpand-1
-      "mB" 'slime-macroexpand-all
-      "mi" 'slime-inspect-definition
-      "mI" 'slime-inspect
-      "mc" 'slime-calls-who
-      "mv" 'slime-toggle-trace-fdefinition))
-
-  (add-hook 'lisp-mode-hook 'setup-lisp-sexp-keybindings)
-  (add-hook 'lisp-mode-hook 'setup-common-lisp-keybindings)
-  (add-hook 'slime-mode-hook 'setup-common-lisp-keybindings))
-
-;; =======================
 ;; Fennel Setup
 ;; =======================
 
@@ -993,188 +693,357 @@
         fennel-mode-auto-detect-repl-type t))
 
 ;; =======================
-;; Lua Development
+;; LSP Mode Setup
 ;; =======================
 
-;; Lua mode
-(use-package lua-mode
-  :mode "\\.lua\\'"
-  :config
-  (setq lua-indent-level 2
-        lua-indent-string-contents t
-        lua-prefix-key nil))  ; We'll use our own keybindings
-
-;; LSP support for Lua
 (use-package lsp-mode
-  :hook (lua-mode . lsp-deferred)
-  :config
-  ;; Configure lua-language-server settings
-  (lsp-register-custom-settings
-   '(("Lua.telemetry.enable" nil t)
-     ("Lua.completion.enable" t t)
-     ("Lua.completion.callSnippet" "Both" t)
-     ("Lua.completion.keywordSnippet" "Both" t)
-     ("Lua.diagnostics.globals" ["vim" "awesome" "client" "root" "screen"] t)
-     ("Lua.workspace.checkThirdParty" nil t))))
-
-;; Company backend for Lua
-(use-package company-lua
-  :after (company lua-mode)
-  :config
-  (add-to-list 'company-backends 'company-lua))
-
-;; Lua REPL integration
-(use-package lua-mode
-  :config
-  (defun lua-send-current-line ()
-    "Send current line to Lua REPL."
-    (interactive)
-    (lua-send-region (line-beginning-position) (line-end-position)))
+  :commands (lsp lsp-deferred)
+  :hook ((go-mode . lsp-deferred)
+         (go-ts-mode . lsp-deferred))
+  :init
+  ;; Performance tuning
+  (setq lsp-idle-delay 0.5
+        lsp-log-io nil
+        read-process-output-max (* 1024 1024)
+        lsp-completion-provider :none  ; Use company-capf
+        lsp-prefer-flymake nil)         ; Use flycheck
   
-  (defun lua-send-buffer ()
-    "Send entire buffer to Lua REPL."
-    (interactive)
-    (lua-send-region (point-min) (point-max)))
+  :config
+  ;; LSP UI settings
+  (setq lsp-eldoc-enable-hover t
+        lsp-eldoc-render-all nil
+        lsp-signature-auto-activate t
+        lsp-signature-render-documentation t
+        lsp-modeline-diagnostics-enable t
+        lsp-modeline-code-actions-enable t
+        lsp-diagnostics-provider :flycheck
+        lsp-enable-file-watchers t
+        lsp-file-watch-threshold 2000)
   
-  (defun lua-send-defun ()
-    "Send current function to Lua REPL."
-    (interactive)
-    (save-excursion
-      (lua-beginning-of-proc)
-      (let ((start (point)))
-        (lua-end-of-proc)
-        (lua-send-region start (point))))))
+  ;; Go specific LSP settings
+  (setq lsp-go-analyses '((fieldalignment . t)
+                          (nilness . t)
+                          (shadow . t)
+                          (unusedparams . t)
+                          (unusedwrite . t)
+                          (useany . t)
+                          (unusedvariable . t))
+        lsp-go-codelenses '((gc_details . t)
+                           (generate . t)
+                           (regenerate_cgo . t)
+                           (test . t)
+                           (tidy . t)
+                           (upgrade_dependency . t)
+                           (vendor . t))
+        lsp-go-use-gofumpt t
+        lsp-go-goimports-local ""
+        lsp-go-link-target "pkg.go.dev"))
 
-;; Lua-specific keybindings
-(defun setup-lua-keybindings ()
-  "Setup Lua development keybindings."
+(use-package lsp-ui
+  :after lsp-mode
+  :config
+  (setq lsp-ui-doc-enable t
+        lsp-ui-doc-position 'at-point
+        lsp-ui-doc-show-with-cursor nil
+        lsp-ui-doc-show-with-mouse t
+        lsp-ui-doc-delay 1
+        lsp-ui-sideline-enable t
+        lsp-ui-sideline-show-diagnostics t
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-show-code-actions t
+        lsp-ui-sideline-delay 0.5
+        lsp-ui-peek-enable t
+        lsp-ui-peek-list-width 60
+        lsp-ui-peek-peek-height 25
+        lsp-ui-imenu-enable t))
+
+;; =======================
+;; Go Mode Setup
+;; =======================
+
+(use-package go-mode
+  :mode "\\.go\\'"
+  :config
+  ;; Format on save
+  (setq gofmt-command "goimports")
+  (add-hook 'before-save-hook 'gofmt-before-save nil t)
+  
+  ;; Go specific settings
+  (setq go-test-verbose t
+        compile-command "go build -v && go test -v && go vet"))
+
+;; Additional Go tools
+(use-package go-tag
+  :after go-mode)
+
+(use-package go-fill-struct
+  :after go-mode)
+
+(use-package go-impl
+  :after go-mode)
+
+(use-package go-gen-test
+  :after go-mode)
+
+(use-package gotest
+  :after go-mode)
+
+(use-package go-playground
+  :after go-mode)
+
+;; =======================
+;; DAP Mode (Debugging)
+;; =======================
+
+(use-package dap-mode
+  :after lsp-mode
+  :config
+  (dap-auto-configure-mode)
+  (require 'dap-go)
+  (dap-go-setup))
+
+;; =======================
+;; Go Keybindings
+;; =======================
+
+(defun setup-go-keybindings ()
+  "Setup comprehensive Go specific keybindings matching your style."
   (my-local-leader-def
     :keymaps 'local
     
-    ;; LSP Navigation
-    "gd" 'lsp-find-definition
-    "gD" 'lsp-find-declaration  
-    "gr" 'lsp-find-references
-    "gi" 'lsp-find-implementation
-    "gt" 'lsp-find-type-definition
-    "gb" 'xref-pop-marker-stack
-    "gh" 'lsp-describe-thing-at-point
+    ;; === Build & Run ===
+    "cc" 'compile                        ; Compile project
+    "cr" 'recompile                      ; Recompile
+    "cb" 'go-build                       ; Build current package
+    "cB" 'go-build-project               ; Build entire project
+    "cx" 'go-run                         ; Run current file
+    "cX" 'go-run-main                    ; Run main package
     
-    ;; LSP Actions
-    "aa" 'lsp-execute-code-action
-    "ar" 'lsp-rename
-    "af" 'lsp-format-buffer
-    "aF" 'lsp-format-region
-    "ai" 'lsp-organize-imports
+    ;; === Testing ===
+    "tt" 'go-test-current-test           ; Test at point
+    "tf" 'go-test-current-file           ; Test current file
+    "tp" 'go-test-current-project        ; Test project
+    "ta" 'go-test-all                    ; Test all
+    "tT" 'go-test-current-test-cache     ; Test at point (cached)
+    "tF" 'go-test-current-file-cache     ; Test file (cached)
+    "tb" 'go-test-current-benchmark      ; Run benchmark at point
+    "tc" 'go-test-coverage               ; Test with coverage
+    "tg" 'go-gen-test-dwim               ; Generate test for function
+    "tG" 'go-gen-test-all                ; Generate all tests
     
-    ;; LSP Workspace
-    "wr" 'lsp-workspace-restart
-    "ws" 'lsp-workspace-shutdown
-    "wf" 'lsp-workspace-folders-add
-    "wF" 'lsp-workspace-folders-remove
+    ;; === Navigation & Finding (LSP) ===
+    "gd" 'lsp-find-definition            ; Go to definition
+    "gD" 'lsp-find-definition-other-window ; Definition other window
+    "gr" 'lsp-find-references            ; Find references
+    "gi" 'lsp-find-implementation        ; Find implementation
+    "gt" 'lsp-find-type-definition       ; Find type definition
+    "gb" 'xref-pop-marker-stack          ; Go back
+    "gn" 'lsp-ui-find-next-reference     ; Next reference
+    "gp" 'lsp-ui-find-prev-reference     ; Previous reference
+    "gs" 'consult-lsp-symbols            ; Search symbols
+    "gS" 'consult-lsp-file-symbols       ; Search file symbols
+    "ge" 'lsp-treemacs-errors-list       ; Show errors
+    "gc" 'lsp-treemacs-call-hierarchy    ; Call hierarchy
+    "gC" 'lsp-treemacs-type-hierarchy    ; Type hierarchy
     
-    ;; Documentation & Help
-    "hh" 'lsp-describe-thing-at-point
-    "hs" 'lsp-signature-activate
-    "hi" 'consult-imenu
-    "hd" 'lua-search-documentation
+    ;; === Help & Documentation ===
+    "hd" 'lsp-describe-thing-at-point    ; Describe at point
+    "hD" 'godoc-at-point                 ; Go documentation
+    "hh" 'lsp-ui-doc-show                ; Show hover doc
+    "hH" 'lsp-ui-doc-glance              ; Glance documentation
+    "hs" 'lsp-signature-activate         ; Show signature
+    "ha" 'consult-lsp-diagnostics        ; Show all diagnostics
+    "hf" 'lsp-ui-doc-focus-frame         ; Focus doc frame
     
-    ;; Symbol Search
-    "ss" 'consult-lsp-symbols
-    "sS" 'consult-lsp-symbols
-    "si" 'consult-imenu
+    ;; === Code Actions & Refactoring ===
+    "aa" 'lsp-execute-code-action        ; Code action
+    "ar" 'lsp-rename                     ; Rename symbol
+    "ao" 'lsp-organize-imports           ; Organize imports
+    "af" 'lsp-format-buffer              ; Format buffer
+    "aF" 'lsp-format-region              ; Format region
+    "ai" 'go-import-add                  ; Add import
+    "aI" 'go-remove-unused-imports       ; Remove unused imports
+    "at" 'go-tag-add                     ; Add struct tags
+    "aT" 'go-tag-remove                  ; Remove struct tags
+    "as" 'go-fill-struct                 ; Fill struct fields
+    "aS" 'lsp-ui-sideline-apply-code-actions ; Apply sideline actions
+    "ae" 'go-if-err-check                ; Add error check
+    "ag" 'go-goto-imports                ; Go to imports
+    "am" 'go-impl                        ; Implement interface
     
-    ;; Diagnostics & Errors
-    "el" 'lsp-treemacs-errors-list
-    "en" 'flycheck-next-error
-    "ep" 'flycheck-previous-error
-    "ec" 'flycheck-clear
-    "ev" 'flycheck-verify-setup
+    ;; === Workspace ===
+    "wA" 'lsp-workspace-folders-add      ; Add workspace folder
+    "wR" 'lsp-workspace-folders-remove   ; Remove workspace folder
+    "wS" 'lsp-workspace-shutdown         ; Shutdown workspace
+    "wr" 'lsp-workspace-restart          ; Restart workspace
+    "ws" 'lsp-workspace-folders-switch   ; Switch workspace
+    "wD" 'lsp-disconnect                 ; Disconnect from LSP
     
-    ;; REPL & Evaluation
-    "'" 'lua-show-process-buffer
-    "sb" 'lua-send-buffer
-    "sd" 'lua-send-defun
-    "sl" 'lua-send-current-line
-    "sr" 'lua-send-region
-    "si" 'lua-start-process
-    "sq" 'lua-kill-process
-    "ss" 'lua-restart-with-whole-file
+    ;; === Debugging (DAP) ===
+    "dd" 'dap-debug                      ; Start debugging
+    "dD" 'dap-debug-last                 ; Debug last configuration
+    "db" 'dap-breakpoint-toggle          ; Toggle breakpoint
+    "dB" 'dap-breakpoint-delete-all      ; Delete all breakpoints
+    "dc" 'dap-continue                   ; Continue
+    "dn" 'dap-next                       ; Step over
+    "di" 'dap-step-in                    ; Step in
+    "do" 'dap-step-out                   ; Step out
+    "dr" 'dap-restart-frame              ; Restart frame
+    "de" 'dap-eval                       ; Evaluate expression
+    "dE" 'dap-eval-region                ; Evaluate region
+    "dq" 'dap-disconnect                 ; Quit debugging
+    "dl" 'dap-ui-locals                  ; Show locals
+    "ds" 'dap-ui-sessions                ; Show sessions
+    "dh" 'dap-hydra                      ; Debug hydra
     
-    ;; Code Navigation
-    "gf" 'lua-forward-sexp
-    "gb" 'lua-backward-sexp
-    "gn" 'lua-next-func-name
-    "gp" 'lua-prev-func-name
-    "ga" 'lua-beginning-of-proc
-    "ge" 'lua-end-of-proc
+    ;; === Go Playground ===
+    "pp" 'go-playground                  ; Open playground
+    "pr" 'go-playground-exec             ; Execute playground
+    "ps" 'go-playground-download         ; Download as file
+    "pu" 'go-playground-upload           ; Upload to play.golang.org
     
-    ;; Compilation & Syntax Check
-    "cc" 'lua-send-buffer
-    "cf" 'lua-send-current-line
-    "cs" 'lua-check-syntax
+    ;; === Module Management ===
+    "mt" 'go-mod-tidy                    ; Run go mod tidy
+    "mi" 'go-mod-init                    ; Initialize module
+    "md" 'go-mod-download                ; Download dependencies
+    "mu" 'go-mod-upgrade                 ; Upgrade dependencies
+    "mv" 'go-mod-vendor                  ; Vendor dependencies
     
-    ;; Code Generation & Snippets
-    "iy" 'yas-insert-snippet
-    "in" 'yas-new-snippet
-    "iv" 'yas-visit-snippet-file
+    ;; === Peek (UI) ===
+    "pd" 'lsp-ui-peek-find-definitions   ; Peek definitions
+    "pr" 'lsp-ui-peek-find-references    ; Peek references
+    "pi" 'lsp-ui-peek-find-implementation ; Peek implementation
+    "ps" 'lsp-ui-peek-find-workspace-symbol ; Peek symbols
     
-    ;; Indentation & Formatting
-    "=l" 'lua-indent-line
-    "=r" 'indent-region
-    "=b" 'lsp-format-buffer
-    "fb" 'lsp-format-buffer
-    "fr" 'lsp-format-region))
+    ;; === Misc ===
+    "=" 'gofmt                           ; Format with gofmt
+    "'" 'run-go-repl                     ; Start Go REPL (gore)
+    "ed" 'go-download-play               ; Download from playground
+    "xx" 'lsp-treemacs-quick-fix         ; Quick fix
+    "xX" 'lsp-ui-flycheck-list))         ; Flycheck error list
 
-;; Apply keybindings to Lua mode
-(add-hook 'lua-mode-hook 'setup-lua-keybindings)
+;; === General LSP Keybindings (for all LSP modes) ===
+(defun setup-lsp-keybindings ()
+  "Setup general LSP keybindings for any LSP-enabled mode."
+  (my-local-leader-def
+    :keymaps 'local
+    ;; These will be available in all LSP modes
+    "l" '(:ignore t :which-key "lsp")
+    "la" 'lsp-execute-code-action
+    "lf" 'lsp-format-buffer
+    "lF" 'lsp-format-region
+    "lr" 'lsp-rename
+    "lR" 'lsp-workspace-restart
+    "ls" 'consult-lsp-symbols
+    "lS" 'consult-lsp-file-symbols
+    "ld" 'consult-lsp-diagnostics
+    "lD" 'lsp-describe-thing-at-point
+    "lh" 'lsp-ui-doc-show
+    "lH" 'lsp-ui-doc-glance
+    "li" 'lsp-ui-imenu
+    "ll" 'lsp-lens-mode
+    "lL" 'lsp-lens-show
+    "le" 'lsp-treemacs-errors-list))
 
-;; Enhanced Lua development setup
-(add-hook 'lua-mode-hook
-          (lambda ()
-            ;; Enable eldoc for function signatures
-            (eldoc-mode 1)
-            ;; Set up indentation
-            (setq-local tab-width lua-indent-level)
-            (setq-local indent-tabs-mode nil)
-            ;; Enable auto-pairing
-            (electric-pair-local-mode 1)))
+;; Hook everything up
+(add-hook 'go-mode-hook 'setup-go-keybindings)
+(add-hook 'lsp-mode-hook 'setup-lsp-keybindings)
 
-;; Lua syntax checking with flycheck
-(use-package flycheck
+;; =======================
+;; Helper Functions
+;; =======================
+
+(defun go-build ()
+  "Build the current Go package."
+  (interactive)
+  (compile "go build -v"))
+
+(defun go-build-project ()
+  "Build the entire Go project."
+  (interactive)
+  (compile "go build -v ./..."))
+
+(defun go-run ()
+  "Run the current Go file."
+  (interactive)
+  (compile (concat "go run " (buffer-file-name))))
+
+(defun go-run-main ()
+  "Run the main package."
+  (interactive)
+  (compile "go run ."))
+
+(defun go-test-all ()
+  "Run all Go tests in the project."
+  (interactive)
+  (compile "go test -v ./..."))
+
+(defun go-test-coverage ()
+  "Run Go tests with coverage."
+  (interactive)
+  (compile "go test -v -coverprofile=coverage.out ./... && go tool cover -html=coverage.out"))
+
+(defun go-mod-tidy ()
+  "Run go mod tidy."
+  (interactive)
+  (compile "go mod tidy"))
+
+(defun go-mod-download ()
+  "Run go mod download."
+  (interactive)
+  (compile "go mod download"))
+
+(defun go-mod-vendor ()
+  "Run go mod vendor."
+  (interactive)
+  (compile "go mod vendor"))
+
+(defun go-mod-upgrade ()
+  "Upgrade all Go dependencies."
+  (interactive)
+  (compile "go get -u ./..."))
+
+(defun go-if-err-check ()
+  "Insert if err != nil check."
+  (interactive)
+  (let ((indent (current-indentation)))
+    (end-of-line)
+    (newline)
+    (indent-to indent)
+    (insert "if err != nil {")
+    (newline)
+    (indent-to (+ indent tab-width))
+    (insert "return err")
+    (newline)
+    (indent-to indent)
+    (insert "}")
+    (forward-line -2)
+    (end-of-line)))
+
+(defun run-go-repl ()
+  "Run gore (Go REPL) if available."
+  (interactive)
+  (if (executable-find "gore")
+      (term "gore")
+    (message "gore not found. Install with: go install github.com/x-motemen/gore/cmd/gore@latest")))
+
+;; =======================
+;; Additional Integrations
+;; =======================
+
+;; Company backend for Go
+(use-package company-go
+  :after (company go-mode)
   :config
-  (flycheck-define-checker lua-luacheck
-    "A Lua syntax checker using luacheck."
-    :command ("luacheck" "--formatter" "plain" "--codes" source)
-    :error-patterns
-    ((warning line-start (file-name) ":" line ":" column ": " (message) line-end))
-    :modes lua-mode)
-  
-  (add-to-list 'flycheck-checkers 'lua-luacheck))
+  (add-to-list 'company-backends 'company-go))
 
-;; Love2D game development support
-(use-package love-minor-mode
-  :hook (lua-mode . love-minor-mode)
+;; Flycheck Go checkers
+(use-package flycheck-golangci-lint
+  :after flycheck
+  :hook (go-mode . flycheck-golangci-lint-setup)
   :config
-  (defun setup-love2d-keybindings ()
-    "Additional keybindings for Love2D development."
-    (when love-minor-mode
-      (my-local-leader-def
-        :keymaps 'local
-        ;; Love2D specific commands
-        "lr" 'love-start
-        "lq" 'love-stop
-        "ll" 'love-reload
-        "lf" 'love-run-file)))
-  
-  (add-hook 'love-minor-mode-hook 'setup-love2d-keybindings))
+  (setq flycheck-golangci-lint-enable-all t))
 
-;; Add to global leader bindings for quick access
-(my-leader-def
-  ;; Quick Lua actions (extends existing bindings)
-  "lr" 'lua-send-region
-  "lb" 'lua-send-buffer
-  "li" 'lua-start-process)
 
 ;; =======================
 ;; LSP Consult Integration
