@@ -92,6 +92,10 @@
 (use-package vterm)
 (use-package multi-vterm)
 
+(use-package emamux)
+
+(use-package dumb-jump)
+
 (use-package exec-path-from-shell
   :config
   (when (or (daemonp) (memq window-system '(mac ns x)))
@@ -695,7 +699,6 @@
 ;; =======================
 ;; LSP Mode Setup
 ;; =======================
-
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
   :hook ((go-mode . lsp-deferred)
@@ -740,9 +743,9 @@
         lsp-go-use-gofumpt t
         lsp-go-goimports-local ""
         lsp-go-link-target "pkg.go.dev")
-
-  ;; Ruby specific LSP settings
-  (setq lsp-ruby-lsp-use-bundler nil)
+  
+  ;; Disable other Ruby language servers to ensure Solargraph is used
+  (setq lsp-disabled-clients '(typeprof-ls steep-ls rubocop-ls ruby-ls))
   )
 
 (use-package lsp-ui
@@ -954,6 +957,34 @@
 ;; Hook everything up
 (add-hook 'go-mode-hook 'setup-go-keybindings)
 (add-hook 'lsp-mode-hook 'setup-lsp-keybindings)
+
+
+;; Ruby config
+
+(use-package ruby-mode
+  :mode "\\.rb\\'"
+  :config
+  (setq ruby-insert-encoding-magic-comment nil)
+  
+  (defun my/insert-pry ()
+    "Insert pry binding on current line."
+    (interactive)
+    (beginning-of-line)
+    (open-line 1)
+    (insert "require 'pry-byebug'; binding.pry")
+    (indent-according-to-mode))
+  
+  (general-define-key
+   :states '(normal visual)
+   :keymaps 'ruby-mode-map
+   :prefix ","  ; local leader
+   "d" '(:ignore t :which-key "debug")
+   "dp" '(my/insert-pry :which-key "insert pry")
+   "r" '(:ignore t :which-key "ruby")
+   "rr" '(ruby-send-region :which-key "send region")
+   "rb" '(ruby-send-buffer :which-key "send buffer")
+   "rl" '(ruby-send-line :which-key "send line")
+   "rt" '(ruby-toggle-string-quotes :which-key "toggle quotes")))
 
 ;; =======================
 ;; Helper Functions
