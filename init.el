@@ -642,16 +642,6 @@
   (add-hook 'clojure-mode-hook 'setup-clojure-keybindings)
   (add-hook 'cider-mode-hook 'setup-clojure-keybindings))
 
-(use-package reformatter
-  :ensure t
-  :config
-  (reformatter-define cljfmt
-    :program "cljfmt"
-    :args '("fix" "-")
-    :stdin t
-    :stdout t
-    :lighter " cljfmt"))
-
 ;; =======================
 ;; Fennel Setup
 ;; =======================
@@ -696,268 +686,347 @@
   (setq fennel-mode-switch-to-repl-after-reload nil
         fennel-mode-auto-detect-repl-type t))
 
+
+;;; c-lsp-config.el --- LSP configuration for C programming
+;;; Commentary:
+;; This configuration sets up LSP (Language Server Protocol) for C programming
+;; with clangd as the backend and provides general keybindings using the
+;; same pattern as your existing configuration.
+
+;;; Code:
+
 ;; =======================
-;; LSP Mode Setup
+;; LSP Core Setup
 ;; =======================
+
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
-  :hook ((go-mode . lsp-deferred)
-         (go-ts-mode . lsp-deferred)
-         (ruby-mode . lsp-deferred)
-         )
+  :hook ((c-mode . lsp-deferred)
+         (c++-mode . lsp-deferred)
+         (lsp-mode . lsp-enable-which-key-integration))
   :init
-  ;; Performance tuning
-  (setq lsp-idle-delay 0.5
-        lsp-log-io nil
-        read-process-output-max (* 1024 1024)
-        lsp-completion-provider :none  ; Use company-capf
-        lsp-prefer-flymake nil)         ; Use flycheck
-  
+  (setq lsp-keymap-prefix "C-c l")  ; Or set to nil if you prefer
   :config
+  ;; Performance optimizations
+  (setq lsp-idle-delay 0.500
+        lsp-log-io nil
+        lsp-completion-provider :capf
+        lsp-prefer-flymake nil
+        gc-cons-threshold 100000000
+        read-process-output-max (* 1024 1024))
+  
   ;; LSP UI settings
-  (setq lsp-eldoc-enable-hover t
-        lsp-eldoc-render-all nil
-        lsp-signature-auto-activate t
-        lsp-signature-render-documentation t
+  (setq lsp-headerline-breadcrumb-enable t
         lsp-modeline-diagnostics-enable t
         lsp-modeline-code-actions-enable t
-        lsp-diagnostics-provider :flycheck
-        lsp-enable-file-watchers t
-        lsp-file-watch-threshold 2000)
+        lsp-signature-auto-activate t
+        lsp-signature-render-documentation t)
   
-  ;; Go specific LSP settings
-  (setq lsp-go-analyses '((fieldalignment . t)
-                          (nilness . t)
-                          (shadow . t)
-                          (unusedparams . t)
-                          (unusedwrite . t)
-                          (useany . t)
-                          (unusedvariable . t))
-        lsp-go-codelenses '((gc_details . t)
-                           (generate . t)
-                           (regenerate_cgo . t)
-                           (test . t)
-                           (tidy . t)
-                           (upgrade_dependency . t)
-                           (vendor . t))
-        lsp-go-use-gofumpt t
-        lsp-go-goimports-local ""
-        lsp-go-link-target "pkg.go.dev")
-  
-  ;; Disable other Ruby language servers to ensure Solargraph is used
-  (setq lsp-disabled-clients '(typeprof-ls steep-ls rubocop-ls ruby-ls))
-  )
+  ;; Clangd specific settings
+  (setq lsp-clients-clangd-args
+        '("--header-insertion=never"
+          "--clang-tidy"
+          "--completion-style=detailed"
+          "--header-insertion-decorators"
+          "--suggest-missing-includes"
+          "--cross-file-rename"
+          "--log=error")))
 
+;; LSP UI for enhanced interface
 (use-package lsp-ui
-  :after lsp-mode
+  :commands lsp-ui-mode
   :config
   (setq lsp-ui-doc-enable t
         lsp-ui-doc-position 'at-point
-        lsp-ui-doc-show-with-cursor nil
+        lsp-ui-doc-delay 0.5
+        lsp-ui-doc-show-with-cursor t
         lsp-ui-doc-show-with-mouse t
-        lsp-ui-doc-delay 1
         lsp-ui-sideline-enable t
-        lsp-ui-sideline-show-diagnostics t
         lsp-ui-sideline-show-hover nil
-        lsp-ui-sideline-show-code-actions t
-        lsp-ui-sideline-delay 0.5
+        lsp-ui-sideline-show-diagnostics t
+        lsp-ui-sideline-ignore-duplicate t
         lsp-ui-peek-enable t
-        lsp-ui-peek-list-width 60
-        lsp-ui-peek-peek-height 25
+        lsp-ui-peek-always-show t
         lsp-ui-imenu-enable t))
 
-;; =======================
-;; Go Mode Setup
-;; =======================
-
-(use-package go-mode
-  :mode "\\.go\\'"
+;; Company mode for completion
+(use-package company
+  :hook (prog-mode . company-mode)
   :config
-  ;; Format on save
-  (setq gofmt-command "goimports")
-  (add-hook 'before-save-hook 'gofmt-before-save nil t)
-  
-  ;; Go specific settings
-  (setq go-test-verbose t
-        compile-command "go build -v && go test -v && go vet"))
+  (setq company-minimum-prefix-length 1
+        company-idle-delay 0.0
+        company-tooltip-align-annotations t
+        company-show-numbers t
+        company-backends '((company-capf company-dabbrev-code))
+        company-require-match nil))
 
-;; Additional Go tools
-(use-package go-tag
-  :after go-mode)
+(use-package company-box
+  :hook (company-mode . company-box-mode)
+  :config
+  (setq company-box-show-single-candidate t
+        company-box-backends-colors nil
+        company-box-max-candidates 50
+        company-box-icons-alist 'company-box-icons-all-the-icons))
 
-(use-package go-fill-struct
-  :after go-mode)
+;; Flycheck for on-the-fly syntax checking
+(use-package flycheck
+  :hook (prog-mode . flycheck-mode)
+  :config
+  (setq flycheck-check-syntax-automatically '(save mode-enabled)
+        flycheck-display-errors-delay 0.3))
 
-(use-package go-impl
-  :after go-mode)
-
-(use-package go-gen-test
-  :after go-mode)
-
-(use-package gotest
-  :after go-mode)
-
-(use-package go-playground
-  :after go-mode)
-
-;; =======================
-;; DAP Mode (Debugging)
-;; =======================
-
+;; DAP (Debug Adapter Protocol) for debugging
 (use-package dap-mode
   :after lsp-mode
   :config
-  (dap-auto-configure-mode)
-  (require 'dap-go)
-  (dap-go-setup))
+  (dap-mode 1)
+  (dap-ui-mode 1)
+  (dap-tooltip-mode 1)
+  (tooltip-mode 1)
+  (dap-ui-controls-mode 1)
+  
+  ;; GDB setup for C/C++
+  (require 'dap-gdb-lldb)
+  (dap-gdb-lldb-setup)
+  
+  ;; Default debug template
+  (dap-register-debug-template
+   "C/C++ GDB Debug"
+   (list :type "gdb"
+         :request "launch"
+         :name "GDB::Run"
+         :target nil
+         :cwd nil)))
 
 ;; =======================
-;; Go Keybindings
+;; C Mode Configuration
 ;; =======================
 
-(defun setup-go-keybindings ()
-  "Setup comprehensive Go specific keybindings matching your style."
+(use-package cc-mode
+  :straight nil  ; Built-in
+  :config
+  ;; C style settings
+  (setq c-default-style '((java-mode . "java")
+                          (awk-mode . "awk")
+                          (other . "k&r"))
+        c-basic-offset 4
+        c-tab-always-indent t)
+  
+  ;; Modern C standards
+  (add-to-list 'c-mode-common-hook
+               (lambda ()
+                 (c-set-style "k&r")
+                 (setq c-basic-offset 4
+                       tab-width 4
+                       indent-tabs-mode nil))))
+
+;; CMake support
+(use-package cmake-mode
+  :mode ("CMakeLists\\.txt\\'" "\\.cmake\\'"))
+
+;; =======================
+;; C Mode Keybindings
+;; =======================
+
+(defun setup-c-lsp-keybindings ()
+  "Setup LSP and C-specific keybindings using general.el local leader."
   (my-local-leader-def
     :keymaps 'local
     
-    ;; === Build & Run ===
-    "cc" 'compile                        ; Compile project
-    "cr" 'recompile                      ; Recompile
-    "cb" 'go-build                       ; Build current package
-    "cB" 'go-build-project               ; Build entire project
-    "cx" 'go-run                         ; Run current file
-    "cX" 'go-run-main                    ; Run main package
+    ;; LSP Core (g prefix - go/navigation)
+    "gd" 'lsp-find-definition
+    "gD" 'lsp-find-declaration
+    "gi" 'lsp-find-implementation
+    "gt" 'lsp-find-type-definition
+    "gr" 'lsp-find-references
+    "gb" 'xref-pop-marker-stack
+    "gp" 'lsp-ui-peek-find-definitions
+    "gP" 'lsp-ui-peek-find-references
+    "gl" 'lsp-ui-peek-find-implementation
     
-    ;; === Testing ===
-    "tt" 'go-test-current-test           ; Test at point
-    "tf" 'go-test-current-file           ; Test current file
-    "tp" 'go-test-current-project        ; Test project
-    "ta" 'go-test-all                    ; Test all
-    "tT" 'go-test-current-test-cache     ; Test at point (cached)
-    "tF" 'go-test-current-file-cache     ; Test file (cached)
-    "tb" 'go-test-current-benchmark      ; Run benchmark at point
-    "tc" 'go-test-coverage               ; Test with coverage
-    "tg" 'go-gen-test-dwim               ; Generate test for function
-    "tG" 'go-gen-test-all                ; Generate all tests
+    ;; Documentation & Help (h prefix)
+    "hh" 'lsp-describe-thing-at-point
+    "hd" 'lsp-ui-doc-show
+    "hD" 'lsp-ui-doc-hide
+    "hs" 'lsp-signature-activate
+    "hH" 'eldoc-doc-buffer
     
-    ;; === Navigation & Finding (LSP) ===
-    "gd" 'lsp-find-definition            ; Go to definition
-    "gD" 'lsp-find-definition-other-window ; Definition other window
-    "gr" 'lsp-find-references            ; Find references
-    "gi" 'lsp-find-implementation        ; Find implementation
-    "gt" 'lsp-find-type-definition       ; Find type definition
-    "gb" 'xref-pop-marker-stack          ; Go back
-    "gn" 'lsp-ui-find-next-reference     ; Next reference
-    "gp" 'lsp-ui-find-prev-reference     ; Previous reference
-    "gs" 'consult-lsp-symbols            ; Search symbols
-    "gS" 'consult-lsp-file-symbols       ; Search file symbols
-    "ge" 'lsp-treemacs-errors-list       ; Show errors
-    "gc" 'lsp-treemacs-call-hierarchy    ; Call hierarchy
-    "gC" 'lsp-treemacs-type-hierarchy    ; Type hierarchy
+    ;; Code Actions & Refactoring (r prefix)
+    "rr" 'lsp-rename
+    "ra" 'lsp-execute-code-action
+    "ro" 'lsp-organize-imports
+    "rf" 'lsp-format-buffer
+    "rF" 'lsp-format-region
+    "rh" 'lsp-document-highlight
     
-    ;; === Help & Documentation ===
-    "hd" 'lsp-describe-thing-at-point    ; Describe at point
-    "hD" 'godoc-at-point                 ; Go documentation
-    "hh" 'lsp-ui-doc-show                ; Show hover doc
-    "hH" 'lsp-ui-doc-glance              ; Glance documentation
-    "hs" 'lsp-signature-activate         ; Show signature
-    "ha" 'consult-lsp-diagnostics        ; Show all diagnostics
-    "hf" 'lsp-ui-doc-focus-frame         ; Focus doc frame
+    ;; Workspace & Session (w prefix)
+    "wr" 'lsp-workspace-restart
+    "ws" 'lsp-workspace-shutdown
+    "wf" 'lsp-workspace-folders-add
+    "wF" 'lsp-workspace-folders-remove
+    "wb" 'lsp-workspace-blacklist-remove
     
-    ;; === Code Actions & Refactoring ===
-    "aa" 'lsp-execute-code-action        ; Code action
-    "ar" 'lsp-rename                     ; Rename symbol
-    "ao" 'lsp-organize-imports           ; Organize imports
-    "af" 'lsp-format-buffer              ; Format buffer
-    "aF" 'lsp-format-region              ; Format region
-    "ai" 'go-import-add                  ; Add import
-    "aI" 'go-remove-unused-imports       ; Remove unused imports
-    "at" 'go-tag-add                     ; Add struct tags
-    "aT" 'go-tag-remove                  ; Remove struct tags
-    "as" 'go-fill-struct                 ; Fill struct fields
-    "aS" 'lsp-ui-sideline-apply-code-actions ; Apply sideline actions
-    "ae" 'go-if-err-check                ; Add error check
-    "ag" 'go-goto-imports                ; Go to imports
-    "am" 'go-impl                        ; Implement interface
+    ;; Diagnostics & Errors (e prefix)
+    "el" 'lsp-ui-flycheck-list
+    "en" 'flycheck-next-error
+    "ep" 'flycheck-previous-error
+    "ee" 'flycheck-list-errors
+    "eb" 'flycheck-buffer
+    "ec" 'flycheck-clear
     
-    ;; === Workspace ===
-    "wA" 'lsp-workspace-folders-add      ; Add workspace folder
-    "wR" 'lsp-workspace-folders-remove   ; Remove workspace folder
-    "wS" 'lsp-workspace-shutdown         ; Shutdown workspace
-    "wr" 'lsp-workspace-restart          ; Restart workspace
-    "ws" 'lsp-workspace-folders-switch   ; Switch workspace
-    "wD" 'lsp-disconnect                 ; Disconnect from LSP
+    ;; Debugging (d prefix)
+    "dd" 'dap-debug
+    "db" 'dap-breakpoint-toggle
+    "dB" 'dap-breakpoint-delete-all
+    "dc" 'dap-continue
+    "dn" 'dap-next
+    "di" 'dap-step-in
+    "do" 'dap-step-out
+    "dr" 'dap-debug-restart
+    "dq" 'dap-disconnect
+    "dD" 'dap-debug-edit-template
+    "du" 'dap-ui-repl
+    "dh" 'dap-hydra
+    "de" 'dap-eval
+    "dE" 'dap-eval-region
+    "ds" 'dap-switch-stack-frame
+    "dS" 'dap-switch-session
     
-    ;; === Debugging (DAP) ===
-    "dd" 'dap-debug                      ; Start debugging
-    "dD" 'dap-debug-last                 ; Debug last configuration
-    "db" 'dap-breakpoint-toggle          ; Toggle breakpoint
-    "dB" 'dap-breakpoint-delete-all      ; Delete all breakpoints
-    "dc" 'dap-continue                   ; Continue
-    "dn" 'dap-next                       ; Step over
-    "di" 'dap-step-in                    ; Step in
-    "do" 'dap-step-out                   ; Step out
-    "dr" 'dap-restart-frame              ; Restart frame
-    "de" 'dap-eval                       ; Evaluate expression
-    "dE" 'dap-eval-region                ; Evaluate region
-    "dq" 'dap-disconnect                 ; Quit debugging
-    "dl" 'dap-ui-locals                  ; Show locals
-    "ds" 'dap-ui-sessions                ; Show sessions
-    "dh" 'dap-hydra                      ; Debug hydra
+    ;; Compilation (c prefix)
+    "cc" 'compile
+    "cr" 'recompile
+    "ck" 'kill-compilation
+    "cn" 'next-error
+    "cp" 'previous-error
     
-    ;; === Go Playground ===
-    "pp" 'go-playground                  ; Open playground
-    "pr" 'go-playground-exec             ; Execute playground
-    "ps" 'go-playground-download         ; Download as file
-    "pu" 'go-playground-upload           ; Upload to play.golang.org
+    ;; Testing (t prefix) - add if using a test framework
+    "tt" 'projectile-test-project
+    "ta" 'projectile-run-project
     
-    ;; === Module Management ===
-    "mt" 'go-mod-tidy                    ; Run go mod tidy
-    "mi" 'go-mod-init                    ; Initialize module
-    "md" 'go-mod-download                ; Download dependencies
-    "mu" 'go-mod-upgrade                 ; Upgrade dependencies
-    "mv" 'go-mod-vendor                  ; Vendor dependencies
+    ;; Toggle (T prefix)
+    "Tl" 'lsp-lens-mode
+    "Th" 'lsp-headerline-breadcrumb-mode
+    "Tm" 'lsp-modeline-diagnostics-mode
+    "Ts" 'lsp-ui-sideline-mode
+    "Td" 'lsp-ui-doc-mode
+    "Ti" 'lsp-ui-imenu
     
-    ;; === Peek (UI) ===
-    "pd" 'lsp-ui-peek-find-definitions   ; Peek definitions
-    "pr" 'lsp-ui-peek-find-references    ; Peek references
-    "pi" 'lsp-ui-peek-find-implementation ; Peek implementation
-    "ps" 'lsp-ui-peek-find-workspace-symbol ; Peek symbols
-    
-    ;; === Misc ===
-    "=" 'gofmt                           ; Format with gofmt
-    "'" 'run-go-repl                     ; Start Go REPL (gore)
-    "ed" 'go-download-play               ; Download from playground
-    "xx" 'lsp-treemacs-quick-fix         ; Quick fix
-    "xX" 'lsp-ui-flycheck-list))         ; Flycheck error list
+    ;; Miscellaneous (m prefix)
+    "ml" 'lsp-lens-show
+    "mL" 'lsp-lens-hide
+    "mi" 'lsp-ui-imenu
+    "ms" 'lsp-treemacs-symbols
+    "me" 'lsp-treemacs-errors-list))
 
-;; === General LSP Keybindings (for all LSP modes) ===
-(defun setup-lsp-keybindings ()
-  "Setup general LSP keybindings for any LSP-enabled mode."
-  (my-local-leader-def
-    :keymaps 'local
-    ;; These will be available in all LSP modes
-    "l" '(:ignore t :which-key "lsp")
-    "la" 'lsp-execute-code-action
-    "lf" 'lsp-format-buffer
-    "lF" 'lsp-format-region
-    "lr" 'lsp-rename
-    "lR" 'lsp-workspace-restart
-    "ls" 'consult-lsp-symbols
-    "lS" 'consult-lsp-file-symbols
-    "ld" 'consult-lsp-diagnostics
-    "lD" 'lsp-describe-thing-at-point
-    "lh" 'lsp-ui-doc-show
-    "lH" 'lsp-ui-doc-glance
-    "li" 'lsp-ui-imenu
-    "ll" 'lsp-lens-mode
-    "lL" 'lsp-lens-show
-    "le" 'lsp-treemacs-errors-list))
+;; Alternative: Setup keybindings without local leader for Evil users
+(defun setup-c-evil-keybindings ()
+  "Setup Evil-friendly C/LSP keybindings."
+  (when (featurep 'evil)
+    (evil-define-key 'normal c-mode-map
+      (kbd "gd") 'lsp-find-definition
+      (kbd "gD") 'lsp-find-declaration
+      (kbd "gi") 'lsp-find-implementation
+      (kbd "gr") 'lsp-find-references
+      (kbd "K") 'lsp-describe-thing-at-point
+      (kbd "[d") 'flycheck-previous-error
+      (kbd "]d") 'flycheck-next-error)))
 
-;; Hook everything up
-(add-hook 'go-mode-hook 'setup-go-keybindings)
-(add-hook 'lsp-mode-hook 'setup-lsp-keybindings)
+;; Add hooks
+(add-hook 'c-mode-hook 'setup-c-lsp-keybindings)
+(add-hook 'c++-mode-hook 'setup-c-lsp-keybindings)
 
+;; Optional: Add Evil keybindings if using Evil mode
+;; (add-hook 'c-mode-hook 'setup-c-evil-keybindings)
+;; (add-hook 'c++-mode-hook 'setup-c-evil-keybindings)
+
+;; =======================
+;; Additional C Utilities
+;; =======================
+
+;; Modern C++ font-lock
+(use-package modern-cpp-font-lock
+  :hook (c++-mode . modern-c++-font-lock-mode))
+
+;; Disaster - see generated assembly
+(use-package disaster
+  :commands (disaster))
+
+;; Projectile integration for C projects
+(with-eval-after-load 'projectile
+  (add-to-list 'projectile-project-root-files "compile_commands.json")
+  (add-to-list 'projectile-project-root-files "Makefile")
+  (add-to-list 'projectile-project-root-files "CMakeLists.txt"))
+
+;; =======================
+;; Helper Functions
+;; =======================
+
+(defun my/c-compile-and-run ()
+  "Compile current C file and run the executable."
+  (interactive)
+  (let* ((file (buffer-file-name))
+         (executable (file-name-sans-extension file)))
+    (compile (format "gcc -Wall -g %s -o %s && %s" file executable executable))))
+
+(defun my/c-insert-include-guard ()
+  "Insert include guard for current header file."
+  (interactive)
+  (let* ((name (file-name-nondirectory (buffer-file-name)))
+         (guard (upcase (concat (replace-regexp-in-string "[^a-zA-Z0-9]" "_" name) "_"))))
+    (save-excursion
+      (goto-char (point-min))
+      (insert (format "#ifndef %s\n#define %s\n\n" guard guard))
+      (goto-char (point-max))
+      (insert (format "\n#endif /* %s */\n" guard)))))
+
+(defun my/c-insert-main ()
+  "Insert a main function template."
+  (interactive)
+  (insert "int main(int argc, char *argv[]) {\n    \n    return 0;\n}")
+  (forward-line -2)
+  (indent-according-to-mode))
+
+;; Add custom function bindings if desired
+(with-eval-after-load 'c-mode
+  (general-define-key
+   :states '(normal visual)
+   :keymaps '(c-mode-map c++-mode-map)
+   :prefix ","
+   "x" '(:ignore t :which-key "custom")
+   "xc" '(my/c-compile-and-run :which-key "compile and run")
+   "xg" '(my/c-insert-include-guard :which-key "insert include guard")
+   "xm" '(my/c-insert-main :which-key "insert main")))
+
+;;; c-lsp-config.el ends here
+
+;; Making Emacs GUD Usable - Complete Configuration
+
+;; Basic configuration - enable many windows and separate IO buffer
+(setq gdb-many-windows t
+      gdb-use-separate-io-buffer t)
+
+;; Fix source file opening in wrong window by making command window dedicated
+(advice-add 'gdb-setup-windows :after
+            (lambda () (set-window-dedicated-p (selected-window) t)))
+
+;; Save and restore window configuration on quit
+(defconst gud-window-register 123456)
+
+(defun gud-quit ()
+  (interactive)
+  (gud-basic-call "quit"))
+
+(add-hook 'gud-mode-hook
+          (lambda ()
+            (gud-tooltip-mode)
+            (window-configuration-to-register gud-window-register)
+            (local-set-key (kbd "C-q") 'gud-quit)))
+
+(advice-add 'gud-sentinel :after
+            (lambda (proc msg)
+              (when (memq (process-status proc) '(signal exit))
+                (jump-to-register gud-window-register)
+                (bury-buffer))))
 
 ;; Ruby config
 
@@ -985,125 +1054,6 @@
    "rb" '(ruby-send-buffer :which-key "send buffer")
    "rl" '(ruby-send-line :which-key "send line")
    "rt" '(ruby-toggle-string-quotes :which-key "toggle quotes")))
-
-;; =======================
-;; Helper Functions
-;; =======================
-
-(defun go-build ()
-  "Build the current Go package."
-  (interactive)
-  (compile "go build -v"))
-
-(defun go-build-project ()
-  "Build the entire Go project."
-  (interactive)
-  (compile "go build -v ./..."))
-
-(defun go-run ()
-  "Run the current Go file."
-  (interactive)
-  (compile (concat "go run " (buffer-file-name))))
-
-(defun go-run-main ()
-  "Run the main package."
-  (interactive)
-  (compile "go run ."))
-
-(defun go-test-all ()
-  "Run all Go tests in the project."
-  (interactive)
-  (compile "go test -v ./..."))
-
-(defun go-test-coverage ()
-  "Run Go tests with coverage."
-  (interactive)
-  (compile "go test -v -coverprofile=coverage.out ./... && go tool cover -html=coverage.out"))
-
-(defun go-mod-tidy ()
-  "Run go mod tidy."
-  (interactive)
-  (compile "go mod tidy"))
-
-(defun go-mod-download ()
-  "Run go mod download."
-  (interactive)
-  (compile "go mod download"))
-
-(defun go-mod-vendor ()
-  "Run go mod vendor."
-  (interactive)
-  (compile "go mod vendor"))
-
-(defun go-mod-upgrade ()
-  "Upgrade all Go dependencies."
-  (interactive)
-  (compile "go get -u ./..."))
-
-(defun go-if-err-check ()
-  "Insert if err != nil check."
-  (interactive)
-  (let ((indent (current-indentation)))
-    (end-of-line)
-    (newline)
-    (indent-to indent)
-    (insert "if err != nil {")
-    (newline)
-    (indent-to (+ indent tab-width))
-    (insert "return err")
-    (newline)
-    (indent-to indent)
-    (insert "}")
-    (forward-line -2)
-    (end-of-line)))
-
-(defun run-go-repl ()
-  "Run gore (Go REPL) if available."
-  (interactive)
-  (if (executable-find "gore")
-      (term "gore")
-    (message "gore not found. Install with: go install github.com/x-motemen/gore/cmd/gore@latest")))
-
-;; =======================
-;; Additional Integrations
-;; =======================
-
-;; Company backend for Go
-(use-package company-go
-  :after (company go-mode)
-  :config
-  (add-to-list 'company-backends 'company-go))
-
-;; Flycheck Go checkers
-(use-package flycheck-golangci-lint
-  :after flycheck
-  :hook (go-mode . flycheck-golangci-lint-setup)
-  :config
-  (setq flycheck-golangci-lint-enable-all t))
-
-;; =======================
-;; LSP Consult Integration
-;; =======================
-
-;; Add consult-lsp for better LSP symbol search
-(use-package consult-lsp
-  :after (consult lsp-mode)
-  :config
-  ;; Define custom consult source for LSP symbols if needed
-  (setq consult-lsp-symbols-narrow
-        '((?f . "Function")
-          (?v . "Variable") 
-          (?c . "Class")
-          (?t . "Type")
-          (?m . "Module")
-          (?n . "Namespace")
-          (?p . "Package")
-          (?s . "Struct")
-          (?e . "Enum")
-          (?i . "Interface")
-          (?o . "Object")
-          (?k . "Key")
-          (?r . "Reference"))))
 
 ;; =======================
 ;; Theme
