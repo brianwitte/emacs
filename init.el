@@ -191,7 +191,7 @@
 
     ;; Open/Toggle
     "o" '(:ignore t :wk "open")
-    "ot" 'vterm
+    "ot" 'multi-vterm
     "op" 'treemacs
 
     ;; Help
