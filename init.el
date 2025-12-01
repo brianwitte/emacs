@@ -73,6 +73,23 @@
       '(read-only t cursor-intangible t face minibuffer-prompt))
 (add-hook 'minibuffer-setup-hook 'cursor-intangible-mode)
 
+;; Make backspace delete whole path components in file prompts
+(defun my/minibuffer-backward-kill (arg)
+  "Delete word or directory component in minibuffer."
+  (interactive "p")
+  (if minibuffer-completing-file-name
+      (if (string-match-p "/." (minibuffer-contents))
+          (zap-up-to-char (- arg) ?/)
+        (delete-minibuffer-contents))
+    (backward-kill-word arg)))
+
+(define-key minibuffer-local-map (kbd "C-<backspace>") 'my/minibuffer-backward-kill)
+(define-key minibuffer-local-map (kbd "DEL") 'my/minibuffer-backward-kill)
+
+;; Dired - macOS ls compatibility (must be set before dired loads)
+(when (eq system-type 'darwin)
+  (setq dired-use-ls-dired nil))
+
 ;; ============================================================================
 ;; Evil Mode
 ;; ============================================================================
@@ -108,7 +125,9 @@
   (global-evil-surround-mode 1))
 
 (use-package evil-nerd-commenter
-  :after evil)
+  :after evil
+  :config
+  (evilnc-default-hotkeys))
 
 ;; ============================================================================
 ;; General - Keybinding Framework
@@ -117,6 +136,10 @@
 (use-package general
   :demand t
   :config
+  ;; ===========================================================================
+  ;; Leader Key Definitions
+  ;; ===========================================================================
+
   ;; Global leader (SPC in normal/visual, C-SPC everywhere)
   (general-create-definer my-leader
     :states '(normal visual insert emacs)
@@ -124,83 +147,248 @@
     :prefix "SPC"
     :global-prefix "C-SPC")
 
-  ;; Local leader (comma in normal/visual)
+  ;; Local leader (comma in normal/visual, C-, in insert/emacs)
   (general-create-definer my-local-leader
     :states '(normal visual)
     :prefix ","
     :non-normal-prefix "C-,")
 
-  ;; Global leader bindings
+  ;; ===========================================================================
+  ;; Global Keybindings (SPC prefix)
+  ;; ===========================================================================
+
   (my-leader
-    ;; Core
-    "SPC" 'project-find-file
-    ":" 'execute-extended-command
-    "." 'find-file
-    "," 'consult-buffer
+    ;; ---------------------------------------------------------------------------
+    ;; Top-level quick access
+    ;; ---------------------------------------------------------------------------
+    "SPC" '(project-find-file :wk "find file in project")
+    ":" '(execute-extended-command :wk "M-x")
+    "." '(find-file :wk "find file")
+    "," '(consult-buffer :wk "switch buffer")
+    "'" '(multi-vterm :wk "terminal")
+    "`" '(evil-switch-to-windows-last-buffer :wk "last buffer")
+    "u" '(universal-argument :wk "universal arg")
+    "x" '(scratch-buffer :wk "scratch buffer")
 
-    ;; Files
-    "f" '(:ignore t :wk "files")
-    "ff" 'find-file
-    "fr" 'consult-recent-file
-    "fs" 'save-buffer
-    "fS" 'write-file
-
-    ;; Buffers
+    ;; ---------------------------------------------------------------------------
+    ;; b - Buffers
+    ;; ---------------------------------------------------------------------------
     "b" '(:ignore t :wk "buffers")
-    "bb" 'consult-buffer
-    "bd" 'kill-buffer
-    "bi" 'ibuffer
-    "bn" 'next-buffer
-    "bp" 'previous-buffer
-    "bR" 'revert-buffer
+    "bb" '(consult-buffer :wk "switch buffer")
+    "bd" '(kill-current-buffer :wk "kill buffer")
+    "bD" '(kill-buffer :wk "kill buffer (choose)")
+    "bi" '(ibuffer :wk "ibuffer")
+    "bk" '(kill-current-buffer :wk "kill buffer")
+    "bn" '(next-buffer :wk "next buffer")
+    "bp" '(previous-buffer :wk "previous buffer")
+    "bR" '(revert-buffer :wk "revert buffer")
+    "bs" '(save-buffer :wk "save buffer")
+    "bS" '(save-some-buffers :wk "save all buffers")
 
-    ;; Windows
-    "w" '(:ignore t :wk "windows")
-    "ws" 'split-window-below
-    "wv" 'split-window-right
-    "wh" 'evil-window-left
-    "wj" 'evil-window-down
-    "wk" 'evil-window-up
-    "wl" 'evil-window-right
-    "wd" 'delete-window
-    "wD" 'kill-buffer-and-window
-    "wm" 'delete-other-windows
+    ;; ---------------------------------------------------------------------------
+    ;; c - Code/LSP actions
+    ;; ---------------------------------------------------------------------------
+    "c" '(:ignore t :wk "code")
+    "ca" '(lsp-execute-code-action :wk "code action")
+    "cd" '(lsp-find-definition :wk "find definition")
+    "cD" '(lsp-find-declaration :wk "find declaration")
+    "ce" '(flycheck-list-errors :wk "list errors")
+    "cf" '(lsp-format-buffer :wk "format buffer")
+    "cF" '(lsp-format-region :wk "format region")
+    "ci" '(lsp-find-implementation :wk "find implementation")
+    "cn" '(flycheck-next-error :wk "next error")
+    "cp" '(flycheck-previous-error :wk "previous error")
+    "cr" '(lsp-rename :wk "rename symbol")
+    "cR" '(lsp-find-references :wk "find references")
+    "ct" '(lsp-find-type-definition :wk "find type definition")
+    "cx" '(lsp-workspace-restart :wk "restart LSP")
 
-    ;; Projects
-    "p" '(:ignore t :wk "project")
-    "pp" 'projectile-switch-project
-    "pf" 'project-find-file
-    "pb" 'consult-project-buffer
-    "pg" 'consult-ripgrep
-    "pc" 'projectile-compile-project
-    "pk" 'projectile-kill-buffers
-    "pd" 'projectile-dired
+    ;; ---------------------------------------------------------------------------
+    ;; f - Files
+    ;; ---------------------------------------------------------------------------
+    "f" '(:ignore t :wk "files")
+    "fd" '(dirvish :wk "dirvish (ranger)")
+    "fD" '(dirvish-dwim :wk "dirvish dwim")
+    "fe" '(sudo-edit :wk "sudo edit")
+    "ff" '(find-file :wk "find file")
+    "fj" '(dirvish-quick-access :wk "quick access")
+    "fp" '(project-find-file :wk "find in project")
+    "fr" '(consult-recent-file :wk "recent files")
+    "fs" '(save-buffer :wk "save file")
+    "fS" '(write-file :wk "save as")
+    "fy" '(my/copy-file-path :wk "copy file path")
 
-    ;; Search
-    "s" '(:ignore t :wk "search")
-    "ss" 'consult-line
-    "sS" 'consult-line-multi
-    "sp" 'consult-ripgrep
-    "sf" 'consult-find
-    "sg" 'consult-grep
-    "si" 'consult-imenu
-    "sI" 'consult-imenu-multi
-    "so" 'consult-outline
-    "sm" 'consult-mark
-    "sR" 'consult-resume
+    ;; ---------------------------------------------------------------------------
+    ;; g - Git
+    ;; ---------------------------------------------------------------------------
+    "g" '(:ignore t :wk "git")
+    "gb" '(magit-blame :wk "blame")
+    "gB" '(blamer-mode :wk "toggle inline blame")
+    "gc" '(magit-commit :wk "commit")
+    "gd" '(magit-diff :wk "diff")
+    "gf" '(magit-file-dispatch :wk "file dispatch")
+    "gg" '(magit-status :wk "status")
+    "gG" '(magit-dispatch :wk "dispatch")
+    "gh" '(:ignore t :wk "hunk")
+    "ghn" '(git-gutter:next-hunk :wk "next hunk")
+    "ghp" '(git-gutter:previous-hunk :wk "prev hunk")
+    "ghr" '(git-gutter:revert-hunk :wk "revert hunk")
+    "ghs" '(git-gutter:stage-hunk :wk "stage hunk")
+    "gl" '(magit-log :wk "log")
+    "gL" '(magit-log-buffer-file :wk "log file")
+    "gp" '(magit-push :wk "push")
+    "gP" '(magit-pull :wk "pull")
+    "gr" '(magit-rebase :wk "rebase")
+    "gs" '(magit-stage-file :wk "stage file")
+    "gt" '(git-timemachine :wk "time machine")
+    "gU" '(magit-unstage-file :wk "unstage file")
 
-    ;; Open/Toggle
-    "o" '(:ignore t :wk "open")
-    "ot" 'multi-vterm
-    "op" 'treemacs
-
-    ;; Help
+    ;; ---------------------------------------------------------------------------
+    ;; h - Help
+    ;; ---------------------------------------------------------------------------
     "h" '(:ignore t :wk "help")
-    "hf" 'describe-function
-    "hv" 'describe-variable
-    "hk" 'describe-key
-    "hm" 'describe-mode
-    "hp" 'describe-package))
+    "ha" '(apropos :wk "apropos")
+    "hb" '(embark-bindings :wk "bindings")
+    "hf" '(describe-function :wk "function")
+    "hF" '(describe-face :wk "face")
+    "hi" '(info :wk "info")
+    "hk" '(describe-key :wk "key")
+    "hm" '(describe-mode :wk "mode")
+    "hp" '(describe-package :wk "package")
+    "hv" '(describe-variable :wk "variable")
+    "hw" '(where-is :wk "where is")
+
+    ;; ---------------------------------------------------------------------------
+    ;; j - Jump/Navigation
+    ;; ---------------------------------------------------------------------------
+    "j" '(:ignore t :wk "jump")
+    "jd" '(dumb-jump-go :wk "dumb jump")
+    "jD" '(dumb-jump-go-other-window :wk "dumb jump other window")
+    "ji" '(consult-imenu :wk "imenu")
+    "jI" '(consult-imenu-multi :wk "imenu multi")
+    "jj" '(evil-avy-goto-char-timer :wk "avy char")
+    "jl" '(evil-avy-goto-line :wk "avy line")
+    "jm" '(consult-mark :wk "marks")
+    "jo" '(consult-outline :wk "outline")
+
+    ;; ---------------------------------------------------------------------------
+    ;; o - Open/Toggle
+    ;; ---------------------------------------------------------------------------
+    "o" '(:ignore t :wk "open/toggle")
+    "od" '(dirvish-side :wk "dirvish sidebar")
+    "oD" '(dirvish :wk "dirvish full")
+    "oi" '(imenu-list-smart-toggle :wk "imenu sidebar")
+    "op" '(treemacs :wk "treemacs")
+    "oP" '(treemacs-select-window :wk "treemacs focus")
+    "ot" '(multi-vterm :wk "terminal")
+    "oT" '(multi-vterm-project :wk "project terminal")
+
+    ;; ---------------------------------------------------------------------------
+    ;; p - Project
+    ;; ---------------------------------------------------------------------------
+    "p" '(:ignore t :wk "project")
+    "pa" '(projectile-add-known-project :wk "add project")
+    "pb" '(consult-project-buffer :wk "project buffers")
+    "pc" '(projectile-compile-project :wk "compile")
+    "pd" '(projectile-dired :wk "project dired")
+    "pf" '(project-find-file :wk "find file")
+    "pg" '(consult-ripgrep :wk "ripgrep")
+    "pk" '(projectile-kill-buffers :wk "kill buffers")
+    "pp" '(projectile-switch-project :wk "switch project")
+    "pr" '(projectile-recentf :wk "recent files")
+    "pR" '(projectile-replace :wk "replace in project")
+    "ps" '(consult-ripgrep :wk "search project")
+    "pt" '(multi-vterm-project :wk "project terminal")
+
+    ;; ---------------------------------------------------------------------------
+    ;; q - Quit/Session
+    ;; ---------------------------------------------------------------------------
+    "q" '(:ignore t :wk "quit")
+    "qf" '(delete-frame :wk "delete frame")
+    "qq" '(save-buffers-kill-terminal :wk "quit emacs")
+    "qQ" '(kill-emacs :wk "kill emacs")
+    "qr" '(restart-emacs :wk "restart emacs")
+
+    ;; ---------------------------------------------------------------------------
+    ;; r - Ripgrep/Search (dedicated)
+    ;; ---------------------------------------------------------------------------
+    "r" '(:ignore t :wk "ripgrep")
+    "rd" '(deadgrep :wk "deadgrep")
+    "rp" '(projectile-ripgrep :wk "project ripgrep")
+    "rr" '(ripgrep-regexp :wk "ripgrep regexp")
+    "rs" '(consult-ripgrep :wk "consult ripgrep")
+
+    ;; ---------------------------------------------------------------------------
+    ;; s - Search
+    ;; ---------------------------------------------------------------------------
+    "s" '(:ignore t :wk "search")
+    "sb" '(consult-line :wk "search buffer")
+    "sB" '(consult-line-multi :wk "search all buffers")
+    "sd" '(deadgrep :wk "deadgrep")
+    "sf" '(consult-find :wk "find files")
+    "sg" '(consult-grep :wk "grep")
+    "si" '(consult-imenu :wk "imenu")
+    "sI" '(consult-imenu-multi :wk "imenu multi")
+    "sm" '(consult-mark :wk "marks")
+    "so" '(consult-outline :wk "outline")
+    "sp" '(consult-ripgrep :wk "ripgrep project")
+    "sr" '(consult-ripgrep :wk "ripgrep")
+    "sR" '(consult-resume :wk "resume search")
+    "ss" '(consult-line :wk "search line")
+
+    ;; ---------------------------------------------------------------------------
+    ;; t - Toggle
+    ;; ---------------------------------------------------------------------------
+    "t" '(:ignore t :wk "toggle")
+    "tb" '(blamer-mode :wk "git blame")
+    "tc" '(display-fill-column-indicator-mode :wk "fill column")
+    "tf" '(toggle-frame-fullscreen :wk "fullscreen")
+    "tg" '(git-gutter-mode :wk "git gutter")
+    "th" '(hl-line-mode :wk "highlight line")
+    "ti" '(imenu-list-smart-toggle :wk "imenu list")
+    "tl" '(display-line-numbers-mode :wk "line numbers")
+    "tn" '(display-line-numbers-mode :wk "line numbers")
+    "tt" '(consult-theme :wk "choose theme")
+    "tw" '(whitespace-mode :wk "whitespace")
+    "tz" '(writeroom-mode :wk "zen mode")
+
+    ;; ---------------------------------------------------------------------------
+    ;; w - Windows
+    ;; ---------------------------------------------------------------------------
+    "w" '(:ignore t :wk "windows")
+    "w=" '(balance-windows :wk "balance windows")
+    "wd" '(delete-window :wk "delete window")
+    "wD" '(kill-buffer-and-window :wk "kill buffer & window")
+    "wh" '(evil-window-left :wk "window left")
+    "wH" '(evil-window-move-far-left :wk "move window left")
+    "wj" '(evil-window-down :wk "window down")
+    "wJ" '(evil-window-move-very-bottom :wk "move window down")
+    "wk" '(evil-window-up :wk "window up")
+    "wK" '(evil-window-move-very-top :wk "move window up")
+    "wl" '(evil-window-right :wk "window right")
+    "wL" '(evil-window-move-far-right :wk "move window right")
+    "wm" '(delete-other-windows :wk "maximize")
+    "wn" '(evil-window-new :wk "new window")
+    "wo" '(other-window :wk "other window")
+    "wr" '(evil-window-rotate-downwards :wk "rotate windows")
+    "ws" '(split-window-below :wk "split horizontal")
+    "wv" '(split-window-right :wk "split vertical")
+    "ww" '(other-window :wk "other window"))
+
+  ;; ===========================================================================
+  ;; Non-leader Global Keybindings
+  ;; ===========================================================================
+
+  ;; General keys available without SPC prefix
+  (general-define-key
+   :states '(normal visual)
+   "C-n" 'next-buffer
+   "C-p" 'previous-buffer)
+
+  ;; Insert state bindings
+  (general-define-key
+   :states 'insert
+   "C-g" 'evil-normal-state))
 
 ;; ============================================================================
 ;; System Integration
@@ -287,7 +475,44 @@
   (projectile-project-root-files '("compile_commands.json" "Makefile" "CMakeLists.txt" ".git")))
 
 (use-package treemacs
-  :defer t)
+  :defer t
+  :config
+  (treemacs-follow-mode t)
+  (treemacs-filewatch-mode t))
+
+(use-package treemacs-evil
+  :after (treemacs evil))
+
+(use-package treemacs-projectile
+  :after (treemacs projectile))
+
+;; Dirvish - Ranger-like file navigator
+(use-package dirvish
+  :init
+  (dirvish-override-dired-mode)
+  :custom
+  (dirvish-quick-access-entries
+   '(("h" "~/" "Home")
+     ("d" "~/Downloads/" "Downloads")
+     ("p" "~/projects/" "Projects")
+     ("c" "~/.config/" "Config"))))
+
+(use-package dirvish-side
+  :straight nil
+  :after dirvish)
+
+(use-package all-the-icons
+  :if (display-graphic-p))
+
+(use-package all-the-icons-dired
+  :hook (dired-mode . all-the-icons-dired-mode))
+
+;; imenu-list - Side panel for code structure
+(use-package imenu-list
+  :defer t
+  :custom
+  (imenu-list-focus-after-activation t)
+  (imenu-list-auto-resize t))
 
 ;; ============================================================================
 ;; Development Tools
@@ -710,6 +935,79 @@
   (global-rbenv-mode))
 
 ;; ============================================================================
+;; Language: TypeScript
+;; ============================================================================
+
+(use-package typescript-mode
+  :mode "\\.ts\\'"
+  :hook (typescript-mode . lsp-deferred)
+  :custom
+  (typescript-indent-level 2))
+
+(use-package tsx-ts-mode
+  :straight nil
+  :mode "\\.tsx\\'"
+  :hook (tsx-ts-mode . lsp-deferred))
+
+(use-package web-mode
+  :mode ("\\.tsx\\'" . web-mode)
+  :hook (web-mode . lsp-deferred)
+  :custom
+  (web-mode-markup-indent-offset 2)
+  (web-mode-code-indent-offset 2)
+  (web-mode-css-indent-offset 2)
+  :config
+  ;; Use TypeScript LSP for TSX files in web-mode
+  (add-to-list 'lsp-language-id-configuration '(web-mode . "typescriptreact")))
+
+;; Local leader keybindings for TypeScript
+(with-eval-after-load 'general
+  (my-local-leader
+    :keymaps '(typescript-mode-map web-mode-map)
+
+    ;; Goto
+    "g" '(:ignore t :wk "goto")
+    "gd" 'lsp-find-definition
+    "gD" 'lsp-find-declaration
+    "gi" 'lsp-find-implementation
+    "gt" 'lsp-find-type-definition
+    "gr" 'lsp-find-references
+    "gb" 'xref-pop-marker-stack
+    "gp" 'lsp-ui-peek-find-definitions
+    "gP" 'lsp-ui-peek-find-references
+
+    ;; Help
+    "h" '(:ignore t :wk "help")
+    "hh" 'lsp-describe-thing-at-point
+    "hd" 'lsp-ui-doc-show
+    "hs" 'lsp-signature-activate
+
+    ;; Refactor
+    "r" '(:ignore t :wk "refactor")
+    "rr" 'lsp-rename
+    "ra" 'lsp-execute-code-action
+    "rf" 'lsp-format-buffer
+    "rF" 'lsp-format-region
+    "ro" 'lsp-organize-imports
+
+    ;; Workspace
+    "w" '(:ignore t :wk "workspace")
+    "wr" 'lsp-workspace-restart
+    "ws" 'lsp-workspace-shutdown
+
+    ;; Errors
+    "e" '(:ignore t :wk "errors")
+    "el" 'lsp-ui-flycheck-list
+    "en" 'flycheck-next-error
+    "ep" 'flycheck-previous-error
+    "ee" 'flycheck-list-errors
+
+    ;; Import/Organize
+    "i" '(:ignore t :wk "import")
+    "io" 'lsp-organize-imports
+    "ia" 'lsp-execute-code-action))
+
+;; ============================================================================
 ;; Additional Packages
 ;; ============================================================================
 
@@ -721,12 +1019,70 @@
   (which-key-sort-order 'which-key-key-order-alpha))
 
 (use-package ripgrep
-  :defer t)
+  :defer t
+  :commands (ripgrep-regexp projectile-ripgrep))
+
+(use-package deadgrep
+  :defer t
+  :commands deadgrep)
+
+(use-package wgrep
+  :defer t
+  :custom
+  (wgrep-auto-save-buffer t)
+  (wgrep-change-readonly-file t))
 
 (use-package sudo-edit
   :defer t)
 
 (use-package dumb-jump
+  :defer t
+  :config
+  (setq dumb-jump-prefer-searcher 'rg)
+  (add-hook 'xref-backend-functions #'dumb-jump-xref-activate))
+
+;; ============================================================================
+;; Git Integration
+;; ============================================================================
+
+(use-package magit
+  :defer t
+  :custom
+  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+  (magit-diff-refine-hunk 'all))
+
+(use-package git-timemachine
+  :defer t)
+
+(use-package git-gutter
+  :hook (prog-mode . git-gutter-mode)
+  :custom
+  (git-gutter:update-interval 0.5))
+
+(use-package git-gutter-fringe
+  :after git-gutter
+  :config
+  (define-fringe-bitmap 'git-gutter-fr:added [224] nil nil '(center repeated))
+  (define-fringe-bitmap 'git-gutter-fr:modified [224] nil nil '(center repeated))
+  (define-fringe-bitmap 'git-gutter-fr:deleted [128 192 224 240] nil nil 'bottom))
+
+(use-package blamer
+  :defer t
+  :custom
+  (blamer-idle-time 0.5)
+  (blamer-min-offset 40))
+
+;; ============================================================================
+;; Additional Utilities
+;; ============================================================================
+
+(use-package writeroom-mode
+  :defer t
+  :custom
+  (writeroom-width 100)
+  (writeroom-mode-line t))
+
+(use-package restart-emacs
   :defer t)
 
 ;; ============================================================================
@@ -755,6 +1111,15 @@
   (let* ((file (buffer-file-name))
          (executable (file-name-sans-extension file)))
     (compile (format "gcc -Wall -g %s -o %s && %s" file executable executable))))
+
+(defun my/copy-file-path ()
+  "Copy the current buffer's file path to the kill ring."
+  (interactive)
+  (if buffer-file-name
+      (progn
+        (kill-new buffer-file-name)
+        (message "Copied: %s" buffer-file-name))
+    (message "Buffer is not visiting a file")))
 
 ;; ============================================================================
 ;; Final Setup
