@@ -79,19 +79,6 @@
       '(read-only t cursor-intangible t face minibuffer-prompt))
 (add-hook 'minibuffer-setup-hook 'cursor-intangible-mode)
 
-;; Make backspace delete whole path components in file prompts
-(defun my/minibuffer-backward-kill (arg)
-  "Delete word or directory component in minibuffer."
-  (interactive "p")
-  (if minibuffer-completing-file-name
-      (if (string-match-p "/." (minibuffer-contents))
-          (zap-up-to-char (- arg) ?/)
-        (delete-minibuffer-contents))
-    (backward-kill-word arg)))
-
-(define-key minibuffer-local-map (kbd "C-<backspace>") 'my/minibuffer-backward-kill)
-(define-key minibuffer-local-map (kbd "DEL") 'my/minibuffer-backward-kill)
-
 ;; Dired - macOS ls compatibility (must be set before dired loads)
 (when (eq system-type 'darwin)
   (setq dired-use-ls-dired nil))
@@ -134,6 +121,16 @@
   :after evil
   :config
   (evilnc-default-hotkeys))
+
+;; ============================================================================
+;; my/custom-functions
+;; ============================================================================
+
+(defun my/find-file-from-home ()
+  "Open find-file starting from the home directory."
+  (interactive)
+  (let ((default-directory "~/"))
+    (call-interactively 'find-file)))
 
 ;; ============================================================================
 ;; General - Keybinding Framework
@@ -217,6 +214,7 @@
     "fD" '(dirvish-dwim :wk "dirvish dwim")
     "fe" '(sudo-edit :wk "sudo edit")
     "ff" '(find-file :wk "find file")
+    "fh" '(my/find-file-from-home :wk "find file from home")
     "fj" '(dirvish-quick-access :wk "quick access")
     "fp" '(project-find-file :wk "find in project")
     "fr" '(consult-recent-file :wk "recent files")
