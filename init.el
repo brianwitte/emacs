@@ -27,6 +27,12 @@
 (straight-use-package 'use-package)
 (setq straight-use-package-by-default t)
 
+;; Allow straight.el to install newer versions of built-in packages
+(setq straight-built-in-pseudo-packages '())
+
+;; Keep transient up-to-date (it's a built-in but we want the latest)
+(use-package transient)
+
 ;; ============================================================================
 ;; Core Settings
 ;; ============================================================================
@@ -874,6 +880,7 @@
 ;; ============================================================================
 
 (use-package ruby-mode
+  :straight nil
   :mode "\\.rb\\'"
   :general
   (my-local-leader
@@ -1083,6 +1090,9 @@
   (writeroom-mode-line t))
 
 (use-package restart-emacs
+  :defer t)
+
+(use-package yaml-mode
   :defer t)
 
 ;; ============================================================================
