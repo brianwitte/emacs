@@ -1,0 +1,9 @@
+.cache/
+.extension/
+.lsp-session-v1
+eln-cache/
+elpa/
+history
+projectile-bookmarks.eld
+recentf
+straight/
