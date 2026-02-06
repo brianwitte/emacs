@@ -785,10 +785,17 @@
     "ck" 'kill-compilation)
 
   :config
-  (setq c-default-style '((java-mode . "java")
+  (setq c-default-style '((c-mode . "linux")
+                          (java-mode . "java")
                           (awk-mode . "awk")
-                          (other . "k&r"))
-        c-basic-offset 4))
+                          (other . "k&r")))
+  (defun my/c-mode-linux-kernel-style ()
+    "Set up Linux kernel coding style for C buffers."
+    (when (derived-mode-p 'c-mode)
+      (setq c-basic-offset 8
+            tab-width 8
+            indent-tabs-mode t)))
+  (add-hook 'c-mode-hook #'my/c-mode-linux-kernel-style))
 
 (use-package cmake-mode
   :mode (("CMakeLists\\.txt\\'" . cmake-mode)
