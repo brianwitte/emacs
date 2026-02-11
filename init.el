@@ -121,6 +121,16 @@
 
 (use-package evil-nerd-commenter :after evil :config (evilnc-default-hotkeys))
 
+(use-package
+ evil-escape
+ :after evil
+ :config
+ (evil-escape-mode 1)
+ (setq evil-escape-key-sequence "jf"
+       evil-escape-delay 0.2))
+
+
+
 ;; ============================================================================
 ;; my/custom-functions
 ;; ============================================================================
