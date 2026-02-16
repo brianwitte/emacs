@@ -787,7 +787,7 @@
  :commands (lsp lsp-deferred)
  :hook
  (
-  ;;  (c-mode . lsp-deferred)
+  (c-mode . lsp-deferred)
   (c++-mode . lsp-deferred)
   (rustic-mode . lsp-deferred)
   (ruby-mode . lsp-deferred)
