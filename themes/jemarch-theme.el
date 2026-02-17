@@ -54,7 +54,7 @@
    ;; --- Base faces (Panel: LightCyan on Blue) --------------------------------
    `(default
      ((t (:family "Monospace" :background ,blue :foreground ,lightcyan
-          :weight normal :slant normal :height 1 :width normal))))
+          :weight normal :slant normal :height 140 :width normal))))
    `(cursor ((t (:background ,yellow))))
    `(fixed-pitch ((t (:family "Monospace"))))
    `(variable-pitch ((t (:family "Monospace"))))

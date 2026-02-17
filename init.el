@@ -800,6 +800,8 @@
  (lsp-headerline-breadcrumb-enable t)
  (lsp-modeline-diagnostics-enable t)
  (lsp-signature-auto-activate t)
+ (lsp-enable-indentation nil)
+ (lsp-enable-on-type-formatting nil)
  ;; Clangd settings
  (lsp-clients-clangd-args
   '("--header-insertion=never"
@@ -1245,41 +1247,9 @@
   'kill-compilation)
 
   :config
-  (setq c-default-style '((c-mode . "linux")
-                          (java-mode . "java")
-                          (awk-mode . "awk")
-                          (other . "k&r")))
+  (setq c-default-style "linux")
 
-  (defun my/c-mode-linux-kernel-style ()
-    "Set up Linux kernel coding style per Documentation/process/coding-style.rst."
-    (when (derived-mode-p 'c-mode)
-      ;; Indentation: hard tabs, 8-wide
-      (setq c-basic-offset 8
-            tab-width 8
-            indent-tabs-mode t)
-
-      ;; Enforce kernel brace/indent rules
-      (c-set-offset 'substatement-open 0)   ; braces on same column as control
-      (c-set-offset 'statement-case-open 0) ; case braces not indented
-      (c-set-offset 'case-label '+)         ; case labels indented one level
-      (c-set-offset 'arglist-intro '+)      ; continued function args
-      (c-set-offset 'arglist-cont-nonempty '+)
-      (c-set-offset 'arglist-close 0)       ; closing paren at column of open
-      (c-set-offset 'inextern-lang 0)       ; no indent inside extern "C"
-      (c-set-offset 'label 1)              ; goto labels nearly at column 0
-      (c-set-offset 'cpp-macro 0)           ; preprocessor at column 0
-
-      ;; 80-column rule
-      (setq fill-column 80)
-      (display-fill-column-indicator-mode 1)
-
-      ;; Trailing whitespace visibility
-      (setq show-trailing-whitespace t)
-
-      ;; Don't indent inside namespaces (for any C-adjacent code)
-      (c-set-offset 'innamespace 0)))
-
-  (add-hook 'c-mode-hook #'my/c-mode-linux-kernel-style))
+)
 
 (use-package
  cmake-mode
