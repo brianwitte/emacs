@@ -142,6 +142,18 @@
     (call-interactively 'find-file)))
 
 ;; ============================================================================
+;; Which-Key (must load before general for :wk integration)
+;; ============================================================================
+
+(use-package
+ which-key
+ :demand t
+ :config (which-key-mode)
+ :custom
+ (which-key-idle-delay 0.5)
+ (which-key-sort-order 'which-key-key-order-alpha))
+
+;; ============================================================================
 ;; General - Keybinding Framework
 ;; ============================================================================
 
@@ -808,7 +820,9 @@
     "--clang-tidy"
     "--completion-style=detailed"
     "--suggest-missing-includes"
-    "--cross-file-rename")))
+    "--cross-file-rename"))
+ :config
+ (setq lsp-client-packages (remove 'lsp-zig lsp-client-packages)))
 
 (use-package
  lsp-ui
@@ -820,16 +834,6 @@
  (lsp-ui-sideline-enable t)
  (lsp-ui-sideline-show-diagnostics t)
  (lsp-ui-peek-enable t))
-
-(use-package
- dap-mode
- :after lsp-mode
- :config
- (dap-mode 1)
- (dap-ui-mode 1)
- (dap-tooltip-mode 1)
- (require 'dap-gdb-lldb)
- (dap-gdb-lldb-setup))
 
 ;; ============================================================================
 ;; Language: Emacs Lisp
@@ -1214,27 +1218,41 @@
   "ee"
   'flycheck-list-errors
 
-  ;; Debug
+  ;; Debug (GUD)
   "d"
   '(:ignore t :wk "debug")
   "dd"
-  'dap-debug
-  "db"
-  'dap-breakpoint-toggle
-  "dB"
-  'dap-breakpoint-delete-all
-  "dc"
-  'dap-continue
-  "dn"
-  'dap-next
-  "di"
-  'dap-step-in
-  "do"
-  'dap-step-out
-  "dr"
-  'dap-debug-restart
+  '(gdb :wk "start gdb")
   "dq"
-  'dap-disconnect
+  '(my/gdb-kill-session :wk "kill session")
+  "dc"
+  '(gud-cont :wk "continue")
+  "dn"
+  '(gud-next :wk "next (step over)")
+  "di"
+  '(gud-step :wk "step into")
+  "do"
+  '(gud-finish :wk "step out")
+  "dr"
+  '(gud-run :wk "run")
+  "du"
+  '(gud-until :wk "run to cursor")
+  "db"
+  '(gud-break :wk "set breakpoint")
+  "dB"
+  '(gud-remove :wk "remove breakpoint")
+  "dp"
+  '(gud-print :wk "print expr")
+  "de"
+  '(gud-pstar :wk "print *expr")
+  "dU"
+  '(gud-up :wk "frame up")
+  "dD"
+  '(gud-down :wk "frame down")
+  "dw"
+  '(gud-watch :wk "watch expr")
+  "dl"
+  '(my/gdb-restore-layout :wk "restore layout")
 
   ;; Compile
   "c"
@@ -1350,21 +1368,41 @@
   "tc"
   'rustic-cargo-current-test
 
-  ;; Debug
+  ;; Debug (GUD)
   "d"
   '(:ignore t :wk "debug")
   "dd"
-  'dap-debug
-  "db"
-  'dap-breakpoint-toggle
+  '(gdb :wk "start gdb")
+  "dq"
+  '(my/gdb-kill-session :wk "kill session")
   "dc"
-  'dap-continue
+  '(gud-cont :wk "continue")
   "dn"
-  'dap-next
+  '(gud-next :wk "next (step over)")
   "di"
-  'dap-step-in
+  '(gud-step :wk "step into")
   "do"
-  'dap-step-out
+  '(gud-finish :wk "step out")
+  "dr"
+  '(gud-run :wk "run")
+  "du"
+  '(gud-until :wk "run to cursor")
+  "db"
+  '(gud-break :wk "set breakpoint")
+  "dB"
+  '(gud-remove :wk "remove breakpoint")
+  "dp"
+  '(gud-print :wk "print expr")
+  "de"
+  '(gud-pstar :wk "print *expr")
+  "dU"
+  '(gud-up :wk "frame up")
+  "dD"
+  '(gud-down :wk "frame down")
+  "dw"
+  '(gud-watch :wk "watch expr")
+  "dl"
+  '(my/gdb-restore-layout :wk "restore layout")
 
   ;; Macro
   "m"
@@ -1501,12 +1539,6 @@
  :custom (typescript-indent-level 2))
 
 (use-package
- tsx-ts-mode
- :straight nil
- :mode "\\.tsx\\'"
- :hook (tsx-ts-mode . lsp-deferred))
-
-(use-package
  web-mode
  :mode ("\\.tsx\\'" . web-mode)
  :hook (web-mode . lsp-deferred)
@@ -1599,13 +1631,6 @@
 ;; Additional Packages
 ;; ============================================================================
 
-(use-package
- which-key
- :init (which-key-mode)
- :custom
- (which-key-idle-delay 0.5)
- (which-key-sort-order 'which-key-key-order-alpha))
-
 (use-package ripgrep :defer t :commands (ripgrep-regexp projectile-ripgrep))
 
 (use-package deadgrep :defer t :commands deadgrep)
@@ -1665,7 +1690,7 @@
 
 ;; ============================================================================
 ;; Additional Utilities
-;; ==========================================================t=================
+;; ============================================================================
 
 (use-package
  writeroom-mode
@@ -1786,7 +1811,248 @@
 ;; GUD configuration
 (setq
  gdb-many-windows t
- gdb-use-separate-io-buffer t)
+ gdb-use-separate-io-buffer t
+ gdb-show-main t
+ gdb-restore-window-configuration-after-quit t)
+
+;; ---------------------------------------------------------------------------
+;; Soft-dedicate GDB windows
+;; ---------------------------------------------------------------------------
+;; Hard dedication (t) blocks switch-to-buffer entirely, trapping you.
+;; Soft dedication ('soft) still prevents display-buffer from hijacking
+;; the window for random buffers, but lets you switch-to-buffer manually.
+
+(defun my/gdb-soft-dedicate (&rest _)
+  "Downgrade all hard-dedicated windows in the current frame to soft."
+  (dolist (win (window-list))
+    (when (eq t (window-dedicated-p win))
+      (set-window-dedicated-p win 'soft))))
+
+(with-eval-after-load 'gdb-mi
+  ;; After gdb-setup-windows builds the layout, soften all dedications
+  (advice-add 'gdb-setup-windows :after #'my/gdb-soft-dedicate)
+  ;; gdb-set-window-buffer is called every time a GDB buffer is placed
+  ;; in a window -- it always hard-dedicates. Soften it each time.
+  (advice-add 'gdb-set-window-buffer :after #'my/gdb-soft-dedicate)
+
+  ;; Force evil normal state in GDB buffers so navigation keys work
+  (dolist (mode '(gdb-frames-mode
+                  gdb-locals-mode
+                  gdb-breakpoints-mode
+                  gdb-threads-mode
+                  gdb-registers-mode
+                  gdb-memory-mode
+                  gdb-disassembly-mode
+                  gdb-inferior-io-mode))
+    (evil-set-initial-state mode 'normal)))
+
+;; ---------------------------------------------------------------------------
+;; Window navigation within GDB
+;; ---------------------------------------------------------------------------
+;; The layout is a 3x2 grid.  We name the positions so we can jump directly.
+;;
+;;   +----------+-----------+
+;;   | gud      | locals    |
+;;   +----------+-----------+
+;;   | source   | io        |
+;;   +----------+-----------+
+;;   | stack    | breakpts  |
+;;   +----------+-----------+
+
+(defun my/gdb-window-by-buffer (predicate)
+  "Find first window whose buffer satisfies PREDICATE."
+  (cl-find-if (lambda (w) (funcall predicate (window-buffer w)))
+              (window-list)))
+
+(defun my/gdb-select-window (predicate)
+  "Select the window whose buffer matches PREDICATE, if it exists."
+  (let ((win (my/gdb-window-by-buffer predicate)))
+    (when win (select-window win))))
+
+(defun my/gdb-goto-gud ()
+  "Jump to the GUD comint window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (eq (buffer-local-value 'major-mode b) 'gud-mode))))
+
+(defun my/gdb-goto-source ()
+  "Jump to the source code window."
+  (interactive)
+  (if (and (boundp 'gdb-source-window-list) gdb-source-window-list)
+      (let ((win (car gdb-source-window-list)))
+        (when (window-live-p win) (select-window win)))
+    ;; Fallback: find a window visiting a file
+    (my/gdb-select-window
+     (lambda (b) (buffer-file-name b)))))
+
+(defun my/gdb-goto-locals ()
+  "Jump to the locals window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*locals of " (buffer-name b)))))
+
+(defun my/gdb-goto-io ()
+  "Jump to the inferior I/O window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*input/output of " (buffer-name b)))))
+
+(defun my/gdb-goto-stack ()
+  "Jump to the stack frames window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*stack frames of " (buffer-name b)))))
+
+(defun my/gdb-frames-select-and-goto-source ()
+  "Select the stack frame at point and switch to the source window."
+  (interactive)
+  (gdb-select-frame)
+  (my/gdb-goto-source))
+
+(defun my/gdb-goto-breakpoints ()
+  "Jump to the breakpoints window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*breakpoints of " (buffer-name b)))))
+
+(defun my/gdb-goto-threads ()
+  "Jump to the threads window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*threads of " (buffer-name b)))))
+
+(defun my/gdb-goto-registers ()
+  "Jump to the registers window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*registers of " (buffer-name b)))))
+
+(defun my/gdb-goto-memory ()
+  "Jump to the memory window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*memory of " (buffer-name b)))))
+
+(defun my/gdb-goto-disassembly ()
+  "Jump to the disassembly window."
+  (interactive)
+  (my/gdb-select-window
+   (lambda (b) (string-match-p "^\\*disassembly of " (buffer-name b)))))
+
+(defun my/gdb-restore-layout ()
+  "Restore the many-windows layout."
+  (interactive)
+  (gdb-setup-windows))
+
+(defun my/gdb-kill-session ()
+  "Kill the current GDB session and all associated buffers."
+  (interactive)
+  (when (bound-and-true-p gud-comint-buffer)
+    (let ((proc (get-buffer-process gud-comint-buffer)))
+      (when (and proc (process-live-p proc))
+        (set-process-query-on-exit-flag proc nil)
+        (kill-process proc))))
+  (dolist (buf (buffer-list))
+    (let ((name (buffer-name buf)))
+      (when (or (string-match-p "^\\*gud-" name)
+                (string-match-p "^\\*locals of " name)
+                (string-match-p "^\\*stack frames of " name)
+                (string-match-p "^\\*breakpoints of " name)
+                (string-match-p "^\\*threads of " name)
+                (string-match-p "^\\*registers of " name)
+                (string-match-p "^\\*memory of " name)
+                (string-match-p "^\\*disassembly of " name)
+                (string-match-p "^\\*input/output of " name))
+        (let ((p (get-buffer-process buf)))
+          (when p (set-process-query-on-exit-flag p nil)))
+        (kill-buffer buf))))
+  (message "GDB session killed."))
+
+;; ---------------------------------------------------------------------------
+;; GDB keybindings - available from any GDB window via leader
+;; ---------------------------------------------------------------------------
+;; All GDB buffer modes are collected here so keybindings apply everywhere.
+
+(with-eval-after-load 'general
+  (with-eval-after-load 'gdb-mi
+    (let ((gdb-maps '(gud-mode-map
+                      gdb-locals-mode-map
+                      gdb-frames-mode-map
+                      gdb-breakpoints-mode-map
+                      gdb-threads-mode-map
+                      gdb-registers-mode-map
+                      gdb-memory-mode-map
+                      gdb-disassembly-mode-map
+                      gdb-inferior-io-mode-map)))
+
+      ;; Evil normal state bindings available in all GDB windows
+      (general-define-key
+       :states 'normal
+       :keymaps gdb-maps
+
+       ;; Window jumping (g + position key)
+       "g g" 'my/gdb-goto-gud
+       "g s" 'my/gdb-goto-source
+       "g l" 'my/gdb-goto-locals
+       "g i" 'my/gdb-goto-io
+       "g k" 'my/gdb-goto-stack
+       "g b" 'my/gdb-goto-breakpoints
+       "g t" 'my/gdb-goto-threads
+       "g r" 'my/gdb-goto-registers
+       "g m" 'my/gdb-goto-memory
+       "g d" 'my/gdb-goto-disassembly
+
+       ;; Layout
+       "g R" 'my/gdb-restore-layout)
+
+      ;; Frames buffer: RET selects frame and jumps to source
+      (general-define-key
+       :states 'normal
+       :keymaps '(gdb-frames-mode-map)
+       "RET" 'my/gdb-frames-select-and-goto-source)
+
+      ;; Local leader debug commands from any GDB window
+      (my-local-leader
+       :keymaps gdb-maps
+
+       ;; Execution
+       "c" '(gud-cont :wk "continue")
+       "n" '(gud-next :wk "next (step over)")
+       "s" '(gud-step :wk "step into")
+       "f" '(gud-finish :wk "step out")
+       "r" '(gud-run :wk "run")
+       "u" '(gud-until :wk "run to cursor")
+       "j" '(gud-jump :wk "jump to cursor")
+       "U" '(gud-up :wk "frame up")
+       "D" '(gud-down :wk "frame down")
+
+       ;; Breakpoints
+       "b" '(:ignore t :wk "breakpoints")
+       "bb" '(gud-break :wk "set breakpoint")
+       "bd" '(gud-remove :wk "remove breakpoint")
+       "bt" '(gud-tbreak :wk "temporary breakpoint")
+       "bD" '(gdb-delete-all-breakpoints :wk "delete all")
+
+       ;; Inspection
+       "i" '(:ignore t :wk "inspect")
+       "ip" '(gud-print :wk "print expr")
+       "ie" '(gud-pstar :wk "print *expr")
+       "iw" '(gud-watch :wk "watch expr")
+
+       ;; Display
+       "d" '(:ignore t :wk "display")
+       "dl" '(gdb-display-locals-buffer :wk "locals")
+       "dk" '(gdb-display-stack-buffer :wk "stack")
+       "db" '(gdb-display-breakpoints-buffer :wk "breakpoints")
+       "dt" '(gdb-display-threads-buffer :wk "threads")
+       "dr" '(gdb-display-registers-buffer :wk "registers")
+       "dm" '(gdb-display-memory-buffer :wk "memory")
+       "dd" '(gdb-display-disassembly-buffer :wk "disassembly")
+       "di" '(gdb-display-io-buffer :wk "I/O")
+
+       ;; Layout / Session
+       "w" '(my/gdb-restore-layout :wk "restore layout")
+       "q" '(my/gdb-kill-session :wk "kill session")))))
 
 ;; Dired with Evil
 (with-eval-after-load 'dired
@@ -1797,6 +2063,14 @@
   "Reload init file after saving."
   (interactive)
   (load-file user-init-file))
+
+;; ============================================================================
+;; Local Configuration (machine-specific, gitignored)
+;; ============================================================================
+
+(let ((local-config (expand-file-name "local.el" user-emacs-directory)))
+  (when (file-exists-p local-config)
+    (load local-config nil 'nomessage)))
 
 (message "Configuration loaded successfully!")
 
