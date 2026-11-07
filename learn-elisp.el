@@ -1,4 +1,9 @@
-;; tutorial: learn emacs lisp quickly - today!
+;;; learn-elsip.el -- learn emacs lisp quickly - today! -*- lexical binding: t -*-
+
+;;; Commentary:
+;; just for learning elisp
+
+;;; Code:
 ;;
 ;; WARNING: While this won't brick your system, throwing your machine in
 ;; frustration might. You've been warned.
@@ -45,10 +50,6 @@
 (integerp 5)                  ; => t
 (floatp 5.0)                  ; => t
 (zerop 0)                     ; => t
-(plusp 5)                     ; => t
-(minusp -5)                   ; => t
-(oddp 5)                      ; => t
-(evenp 6)                     ; => t
 
 ;; Variable Operations
 ;; -----------------
