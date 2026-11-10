@@ -738,9 +738,26 @@
   (list :type "Ruby"
         :request "launch"
         :name "Run Current File"))
- ;; Auto-show locals/breakpoints/repl on debug session start
+ ;; Auto-show locals/breakpoints/repl on debug session start.  No `controls'
+ ;; (floating play/step button bar): stepping is on the ,d keys.
  (setq dap-auto-configure-features
-       '(sessions locals breakpoints expressions controls tooltip repl)))
+       '(sessions locals breakpoints expressions tooltip repl))
+ ;; The Locals panel opens at session start, before anything has stopped,
+ ;; and lsp-treemacs applies `dap-ui-locals-expand-depth' only on that first
+ ;; (empty) render, so scopes arrive collapsed.  Re-render while the panel is
+ ;; empty so the expand depth applies; later refreshes keep your folding.
+ (with-eval-after-load 'dap-ui
+   (advice-add 'dap-ui-locals--refresh :around
+               (lambda (orig &rest args)
+                 ;; Empty = dap-ui's "Nothing to display..." placeholder node.
+                 (if (when-let* ((buf (get-buffer dap-ui--locals-buffer)))
+                       (let ((tree (buffer-local-value 'lsp-treemacs-tree buf)))
+                         (or (null tree)
+                             (eq (plist-get (car tree) :icon) :empty))))
+                     (lsp-treemacs-render (dap-ui-locals-get-data) " Locals "
+                                          dap-ui-locals-expand-depth
+                                          dap-ui--locals-buffer)
+                   (apply orig args))))))
 
 ;; ============================================================================
 ;; Language: Emacs Lisp
